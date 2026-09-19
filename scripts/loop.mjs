@@ -29,6 +29,8 @@ const ROLES = [
   "full screen button",
   "search field",
   "text field",
+  "text entry area",
+  "time field",
   "pop up button",
   "toggle button",
   "stepper",
@@ -59,6 +61,8 @@ const CLICKABLE_ROLES = new Set([
   "menu item",
   "text field",
   "search field",
+  "text entry area",
+  "time field",
   "checkbox",
   "pop up button",
   "toggle button",
@@ -142,11 +146,15 @@ export function buildContext(axText, { maxTextLines = 6 } = {}) {
 
 /* ------------------------------ cua 适配 ------------------------------ */
 
-export function createCuaDriver(cua) {
+/**
+ * 原生 App driver。
+ * macOS 可继续按 appName 绑定；Windows/Linux 必须传入 inventory 中的精确 windowId。
+ */
+export function createCuaDriver(cua, { windowId } = {}) {
   let app = null;
   return {
     async bind(appName) {
-      app = await cua.getApp(appName);
+      app = await cua.getApp(windowId == null ? appName : { windowId });
       return app;
     },
     async observe({ full = true } = {}) {
@@ -169,6 +177,40 @@ export function createCuaDriver(cua) {
     },
     async scroll(index, direction, pages) {
       return app.scroll(index, direction, pages);
+    },
+  };
+}
+
+/**
+ * 浏览器 Tab driver（Windows/macOS/Linux 通用）。
+ * tab 必须由 cua.getTab(...) 或 cua.createBrowserTab(...) 取得，避免猜测浏览器和标签页。
+ */
+export function createCuaTabDriver(tab) {
+  if (!tab) throw new TypeError("createCuaTabDriver 需要一个已绑定的 cua Tab");
+  return {
+    async bind() {
+      return tab;
+    },
+    async observe({ full = true } = {}) {
+      return withRetry(() => tab.getAXState({ emit: false, disableDiffing: full }), { attempts: 3, delayMs: 300 });
+    },
+    async click(index, options) {
+      return tab.click(index, options);
+    },
+    async drag(from, to) {
+      return tab.drag(from, to);
+    },
+    async setValue(index, value) {
+      return tab.setValue(index, value);
+    },
+    async typeText(text, index) {
+      return tab.typeText(index ?? null, text);
+    },
+    async pressKey(key, index) {
+      return tab.pressKey(index ?? null, key);
+    },
+    async scroll(index, direction, pages) {
+      return tab.scroll(index, direction, pages);
     },
   };
 }
@@ -337,9 +379,9 @@ async function executeAction(driver, decision, resources) {
     case "set_value":
       return driver.setValue(decision.targetIndex, String(resources.text ?? ""));
     case "type_text":
-      return driver.typeText(String(resources.text ?? ""));
+      return driver.typeText(String(resources.text ?? ""), decision.targetIndex);
     case "press_key":
-      return driver.pressKey(String(resources.key ?? "Return"));
+      return driver.pressKey(String(resources.key ?? "Return"), decision.targetIndex);
     case "scroll":
       return driver.scroll(decision.targetIndex, String(resources.direction ?? "down"), 1);
     case "wait":

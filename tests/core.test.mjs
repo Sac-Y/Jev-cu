@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseAX, selectCandidates, buildContext } from "../scripts/loop.mjs";
+import { buildContext, createCuaDriver, createCuaTabDriver, parseAX, selectCandidates } from "../scripts/loop.mjs";
 import { evaluatePolicy, matchSensitive } from "../scripts/policy.mjs";
 import { buildQuestions, normalizeDecision, sanitizeLabel } from "../scripts/jev-decide.mjs";
 
@@ -69,6 +69,52 @@ test("buildContext 带上计算器显示值", () => {
   const calcAx = ['Window: "Calculator", App: Calculator.', '0 standard window Calculator', '\t4 text ‎42', '\t24 button Equals'].join("\n");
   const ctx = buildContext(calcAx);
   assert.ok(ctx.includes("42"), "Jev 必须能看到当前显示值");
+});
+
+test("Windows 原生 App 使用精确 windowId 绑定", async () => {
+  let boundTarget;
+  const app = {};
+  const driver = createCuaDriver({
+    getApp: async (target) => { boundTarget = target; return app; },
+  }, { windowId: 123 });
+  assert.equal(await driver.bind("ignored-on-windows"), app);
+  assert.deepEqual(boundTarget, { windowId: 123 });
+});
+
+test("浏览器 Tab driver 传递元素索引给输入与按键", async () => {
+  const calls = [];
+  const tab = {
+    getAXState: async (options) => { calls.push(["observe", options]); return CALENDAR_AX; },
+    click: async (...args) => calls.push(["click", ...args]),
+    drag: async (...args) => calls.push(["drag", ...args]),
+    setValue: async (...args) => calls.push(["setValue", ...args]),
+    typeText: async (...args) => calls.push(["typeText", ...args]),
+    pressKey: async (...args) => calls.push(["pressKey", ...args]),
+    scroll: async (...args) => calls.push(["scroll", ...args]),
+  };
+  const driver = createCuaTabDriver(tab);
+  assert.equal(await driver.bind("Browser"), tab);
+  await driver.observe({ full: true });
+  await driver.typeText("hello", 7);
+  await driver.pressKey("Return", 7);
+  assert.deepEqual(calls, [
+    ["observe", { emit: false, disableDiffing: true }],
+    ["typeText", 7, "hello"],
+    ["pressKey", 7, "Return"],
+  ]);
+});
+
+test("Windows 浏览器 AX 角色包含多行文本与时间字段", () => {
+  const ax = [
+    "1 AXWebArea Form",
+    "\t2 text entry area (settable) Notes",
+    "\t3 time field (settable) Delivery time",
+  ].join("\n");
+  const candidates = selectCandidates(parseAX(ax), "fill delivery notes and time");
+  assert.deepEqual(candidates.map(({ index, role }) => ({ index, role })), [
+    { index: 3, role: "time field" },
+    { index: 2, role: "text entry area" },
+  ]);
 });
 
 test("policy：完成概率高 → done", () => {

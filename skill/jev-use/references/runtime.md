@@ -1,10 +1,10 @@
 # 运行示例
 
-以下代码只在 `cua_repl` 中使用。首次调用先单独执行 `await cua.getApp("Calendar")`，阅读返回的工具文档；导入及循环放到后续调用。若当前接口与 driver 不匹配，停止并适配，不猜测 API。
+以下代码只在 `cua_repl` 中使用。首次调用只执行一个入口调用并阅读返回的工具文档：macOS App 可用 `await cua.getApp("Calendar")`；Windows/Linux App 先用 `await cua.getState()` 核对精确窗口 ID；浏览器先用 `await cua.getTab(...)` 或 `await cua.createBrowserTab(...)` 绑定标签页。导入及循环放到后续调用。若当前接口与 driver 不匹配，停止并适配，不猜测 API。
 
 ```js
 var jevUrl = await import("node:url");
-var repoDir = "{{REPO_DIR}}"; // 安装 skill 时自动替换为本仓库路径
+var repoDir = String.raw`{{REPO_DIR}}`; // String.raw 保留 Windows 路径反斜杠
 var jevLoop = await import(jevUrl.pathToFileURL(
   repoDir + "/scripts/loop.mjs"
 ).href);
@@ -34,4 +34,22 @@ nodeRepl.write(jevResult);
 - `cua_repl` 默认超时 30 秒，调用时长必须覆盖 API 和观测耗时；演示建议单阶段至多 2–3 步，工具超时可设为 60 秒。外层超时后先检查状态和轨迹，不能假设动作未发生。
 - `plan` 是提示，不是持久化执行进度。静态动作计划和 `skipJev` 不能用作 Jev 决策表现的证据。
 
-当前策略仍有按 App 放宽门槛和关键词误判的限制；不要把白名单或低风险分类理解为对该 App 所有写操作的授权。复杂输入、坐标拖拽与浏览器通道需独立验证。
+当前策略仍有按 App 放宽门槛和关键词误判的限制；不要把白名单或低风险分类理解为对该 App 所有写操作的授权。复杂输入与坐标拖拽需独立验证。
+
+## Windows 与浏览器 driver
+
+Windows 原生应用从 inventory 选择精确窗口后绑定：
+
+```js
+var state = await cua.getState(); // 核对 state.apps[].windows 的标题和 id
+var driver = jevLoop.createCuaDriver(cua, { windowId: 123 });
+```
+
+浏览器直接复用已经核对的 Tab，Windows/macOS/Linux 调用方式相同：
+
+```js
+var browserTab = await cua.getTab(tabId, { browser: browserId });
+var driver = jevLoop.createCuaTabDriver(browserTab);
+```
+
+把 `driver` 传给 `runTask`。浏览器 `type_text` 和 `press_key` 会使用 Jev 当前选择的元素索引；每次动作后仍重新读取 AX，不能复用旧索引。
