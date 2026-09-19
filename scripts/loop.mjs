@@ -297,6 +297,27 @@ export async function runTask({
     const tAct = Date.now();
     // 参数既可以是一份静态配置，也可以是按步生成的回调（Planner 决定"做什么"，Jev 决定"点哪里"）
     const stepResources = typeof resources === "function" ? ((await resources(step, decision)) ?? {}) : resources;
+    // 决策和异步资源准备期间，AX 索引或上下文可能已经变化。
+    // 比较完整观测（包括值、父级和状态），保守交回而不重放动作。
+    // 这不是原子锁；坐标/键盘/文本动作也不因此获得元素身份绑定。
+    let freshObservation;
+    try {
+      freshObservation = await driver.observe({ full: true });
+    } catch (err) {
+      record({ event: "pre_action_observation_error", step, message: err.message });
+      return finish("escalate", {
+        steps: step - 1, tracePath, reason: "pre_action_observation_failed",
+        message: "无法重新观测界面，未执行动作", elapsedMs: Date.now() - startedAt,
+      });
+    }
+    if (typeof freshObservation !== "string" || !freshObservation.trim() || freshObservation !== observation) {
+      record({ event: "stale_observation", step });
+      return finish("escalate", {
+        steps: step - 1, tracePath, reason: "observation_changed_before_action",
+        message: "决策后界面已变化或不可读，未执行动作；请重新观测并规划", elapsedMs: Date.now() - startedAt,
+      });
+    }
+    observation = freshObservation;
     try {
       await executeAction(driver, decision, stepResources);
     } catch (err) {
