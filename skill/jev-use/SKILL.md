@@ -11,7 +11,7 @@ Jev 负责从当前候选中选择目标与动作。Codex 负责拆分任务、�
 
 优先用于有清晰文字控件、步骤短、结果可读取的 GUI 流程，例如切换日历视图、搜索和选择条目。画布排版、三维建模及视觉质量判断不适合本实现。
 
-普通任务有可靠 CLI/API 时优先用它们；用户明确要求电脑操作演示或对照测试时，保留 GUI 路径。当前内置 driver 是 macOS App 的 AX 通道，不代表已有浏览器 DOM/标签页适配。
+普通任务有可靠 CLI/API 时优先用它们；用户明确要求电脑操作演示或对照测试时，保留 GUI 路径。内置 driver 支持 macOS App、按精确 `windowId` 绑定的 Windows/Linux App，以及由当前 `cua_repl` 返回的浏览器 Tab；不自行猜测窗口或标签页。
 
 ## 环境与维护
 
@@ -19,7 +19,7 @@ Jev 负责从当前候选中选择目标与动作。Codex 负责拆分任务、�
 - 密钥：项目 `.env.local` 或环境变量 `TYPESAFE_API_KEY`；只检查是否存在，不输出值。
 - 实现：`scripts/loop.mjs`（循环）、`scripts/jev-decide.mjs`（决策）、`scripts/policy.mjs`（门槛）。
 - 技能源文件：项目 `skill/jev-use/`。修改后运行 `node scripts/install-skill.mjs` 同步到已安装目录；不要维护两套正文。
-- 执行前读取当前 `cua_repl` 返回的文档。首次调用只做一个入口调用，例如 `await cua.getApp("Calendar")`；后续调用才导入项目模块。当前工具文档优先于旧示例，不修改官方插件文件。
+- 执行前读取当前 `cua_repl` 返回的文档。首次调用只做一个入口调用，例如 macOS 的 `await cua.getApp("Calendar")`、Windows 的 `await cua.getState()` 或浏览器的 `await cua.getTab(...)`；后续调用才导入项目模块。当前工具文档优先于旧示例，不修改官方插件文件。
 
 ## 执行流程
 

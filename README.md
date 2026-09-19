@@ -44,6 +44,46 @@ await runTask({
 });
 ```
 
+### Windows 原生应用
+
+Windows 的 `getApp` 不按应用名启动或绑定，必须先从 inventory 核对窗口标题并选择精确 `windowId`：
+
+```js
+const state = await cua.getState(); // 先检查 state.apps / state.apps[].windows
+const driver = createCuaDriver(cua, { windowId: 123 }); // 换成核对后的窗口 ID
+
+await runTask({
+  driver,
+  appName: "Calculator",
+  goal: "Press the Equals button.",
+  dryRun: true,
+  maxSteps: 2,
+});
+```
+
+如果目标应用尚未打开，使用当前 `cua_repl` 文档提供的 `cua.computer.launch_app`，刷新 inventory 后再按窗口 ID 绑定。
+
+### Windows 浏览器
+
+浏览器使用跨平台 Tab driver。首次调用应只选择或创建标签页并阅读 `cua_repl` 返回的当前文档；后续调用再导入循环：
+
+```js
+var browserTab = await cua.getTab(tabId, { browser: browserId }); // ID 来自当前 tab/browser inventory
+
+var browserUrl = await import("node:url");
+var browserLoop = await import(browserUrl.pathToFileURL(`${repo}/scripts/loop.mjs`).href);
+
+await browserLoop.runTask({
+  driver: browserLoop.createCuaTabDriver(browserTab),
+  appName: "Codex In-app Browser", // 或策略白名单中的实际浏览器名
+  goal: "Open the Learn more link.",
+  dryRun: true,
+  maxSteps: 2,
+});
+```
+
+Tab 必须来自 `cua.getTab(...)` 或 `cua.createBrowserTab(...)`；实现不会自行猜测浏览器、标签页或用户当前页面。浏览器文本输入会把 Jev 选择的元素索引传给 Tab API，再由循环重新读取完整 AX 状态核验。
+
 ## 验证
 
 ```bash
