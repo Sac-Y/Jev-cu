@@ -190,7 +190,7 @@ test("完成以最终状态核验，最后一步之后也检查", async () => {
   });
   assert.equal(result.status, "done");
   assert.equal(result.verified, true);
-  assert.deepEqual(observations, [true, true]);
+  assert.deepEqual(observations, [true, true, true]);
 });
 
 test("Jev 自报完成不能覆盖失败的结果核验", async () => {
@@ -205,4 +205,77 @@ test("未知目标和缺失概率不放行", () => {
   const decision = normalizeDecision({ target: { choice: "i999" }, action: { choice: "click_element" } }, { i1: "button A" });
   assert.equal(decision.targetIndex, null);
   assert.equal(evaluatePolicy({ decision, app: "Calendar" }).verdict, "escalate");
+});
+
+
+const NEXT_DECISION = { action: "click_element", targetIndex: 58, targetLabel: "next month", confidence: 1, risk: 0, done: 0 };
+
+test("决策期间完整界面变化时，不执行旧索引", async () => {
+  for (const changed of [
+    CALENDAR_AX.replace("58 button next month", "58 button Delete event"),
+    CALENDAR_AX.replace("58 button next month", "58 button (disabled) next month"),
+    CALENDAR_AX.replace("September 2026", "October 2026"),
+    CALENDAR_AX.replace("Month Calendar Area", "Different calendar"),
+  ]) {
+    let ax = CALENDAR_AX, actions = 0;
+    const result = await mockRun({
+      driver: { bind: async () => {}, observe: async () => ax, click: async () => { actions++; } },
+      dryRun: false, maxSteps: 1,
+      decide: async () => { ax = changed; return NEXT_DECISION; },
+    });
+    assert.equal(actions, 0);
+    assert.equal(result.status, "escalate");
+    assert.equal(result.reason, "observation_changed_before_action");
+  }
+});
+
+test("异步资源回调之后再检查界面", async () => {
+  let ax = CALENDAR_AX, actions = 0;
+  const result = await mockRun({
+    driver: { bind: async () => {}, observe: async () => ax, click: async () => { actions++; } },
+    dryRun: false, maxSteps: 1, decide: async () => NEXT_DECISION,
+    resources: async (_step, decision) => {
+      if (decision) ax = ax.replace("58 button next month", "58 button Delete event");
+      return {};
+    },
+  });
+  assert.equal(actions, 0);
+  assert.equal(result.reason, "observation_changed_before_action");
+});
+
+test("执行前观测失败时交回，不执行动作", async () => {
+  let reads = 0, actions = 0;
+  const result = await mockRun({
+    driver: { bind: async () => {}, observe: async () => {
+      if (++reads > 1) throw new Error("AX unavailable");
+      return CALENDAR_AX;
+    }, click: async () => { actions++; } },
+    dryRun: false, maxSteps: 1, decide: async () => NEXT_DECISION,
+  });
+  assert.equal(actions, 0);
+  assert.equal(result.status, "escalate");
+  assert.equal(result.reason, "pre_action_observation_failed");
+});
+
+test("动作返回错误时不重放可能已发生的 mutation", async () => {
+  let actions = 0;
+  const result = await mockRun({
+    driver: { bind: async () => {}, observe: async () => CALENDAR_AX,
+      click: async () => { actions++; throw new Error("timeout after dispatch"); } },
+    dryRun: false, maxSteps: 3, decide: async () => NEXT_DECISION,
+  });
+  assert.equal(actions, 1);
+  assert.equal(result.status, "error");
+});
+
+test("Jev dry-run 无动作且不多读执行前状态", async () => {
+  let reads = 0, actions = 0;
+  const result = await mockRun({
+    driver: { bind: async () => {}, observe: async () => { reads++; return CALENDAR_AX; },
+      click: async () => { actions++; } },
+    dryRun: true, maxSteps: 1, decide: async () => NEXT_DECISION,
+  });
+  assert.equal(result.status, "dry_run");
+  assert.equal(actions, 0);
+  assert.equal(reads, 1);
 });
