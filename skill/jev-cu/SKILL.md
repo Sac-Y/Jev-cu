@@ -16,7 +16,7 @@ Jev 负责从当前候选中选择目标与动作。Codex 负责拆分任务、�
 ## 环境与维护
 
 - 项目：本仓库根目录 `{{REPO_DIR}}`（含 `scripts/` 与 `skill/`；安装 skill 时自动替换为本地路径）。
-- 密钥：项目 `.env.local` 或环境变量 `TYPESAFE_API_KEY`；只检查是否存在，不输出值。
+- 密钥：直连 TypeSafe 使用项目 `.env.local` 或环境变量 `TYPESAFE_API_KEY`；选择 `decisionProvider: "vercel-ai-gateway"` 时使用 `AI_GATEWAY_API_KEY`。只检查是否存在，不输出值。
 - 实现：`scripts/loop.mjs`（循环）、`scripts/jev-decide.mjs`（决策）、`scripts/policy.mjs`（门槛）。
 - 技能源文件：项目 `skill/jev-cu/`。修改后运行 `node scripts/install-skill.mjs` 同步到已安装目录；不要维护两套正文。
 - 执行前读取当前 `cua_repl` 返回的文档。首次调用只做一个入口调用，例如 `await cua.getApp("Calendar")`；后续只有运行时支持时才导入项目模块；若不支持导入，报告运行环境不兼容，由宿主直接操作，不假设 REPL 具备 fs/fetch。当前工具文档优先于旧示例，不修改官方插件文件。
@@ -25,7 +25,7 @@ Jev 负责从当前候选中选择目标与动作。Codex 负责拆分任务、�
 
 已知目标与动作时直接使用 CU，不为明确操作额外调用 Jev。需要从界面候选中判断下一步时，使用以下 runTask 流程；不为是否调用 Jev 再增加一次模型请求。
 
-1. 明确目标 App、动作范围和可观察的成功判据。已有授权内的低风险步骤无需重复确认；用户要求先选方案时，先提供具体方案，等待选择后再操作。
+1. 明确目标 App、动作范围和可观察的成功判据。已有授权内的低风险步骤无需重复确认；用户要求先选方案时，先提供具体方案，等待选择后再操作。默认使用 TypeSafe 直连；需要 Gateway 时在同一个 `runTask` 调用中设置 `decisionProvider: "vercel-ai-gateway"`。
 2. 读取完整 AX 状态。把任务拆成独立的小目标，每次 `runTask` 处理一个目标。输入文字、按键等参数由 Codex 提供。
 3. 新流程先 dry-run，检查候选、动作和门槛。dry-run 只预览当前一步，不模拟后续界面，也不证明整个流程可完成。
 4. 在已授权范围内真实执行。每次动作后读取完整状态，下一步复用这份新观测，不复用动作前的旧索引。优先提供 `verify`，用实际状态核验目标。

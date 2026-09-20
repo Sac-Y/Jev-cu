@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { decide as jevDecide } from "./jev-decide.mjs";
+import { gatewayDecide } from "./gateway-decide.mjs";
 import { evaluatePolicy, DEFAULT_ALLOWED_APPS } from "./policy.mjs";
 
 const PROJECT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -190,6 +191,22 @@ export function createCuaDriver(cua) {
 const defaultEmit = (line) =>
   globalThis.nodeRepl?.write ? globalThis.nodeRepl.write(line + "\n") : console.log(line);
 
+const DECISION_PROVIDERS = Object.freeze({
+  typesafe: jevDecide,
+  gateway: gatewayDecide,
+  "vercel-ai-gateway": gatewayDecide,
+});
+
+/** Resolve the built-in decision backend while keeping custom injection available. */
+export function resolveDecisionProvider(name = "typesafe") {
+  const key = String(name).trim().toLowerCase();
+  const decider = DECISION_PROVIDERS[key];
+  if (!decider) {
+    throw new Error(`未知 Jev decision provider：${name}（可用：typesafe、gateway）`);
+  }
+  return decider;
+}
+
 export async function runTask({
   driver,
   appName,
@@ -199,7 +216,8 @@ export async function runTask({
   candidateMax = 40, // 候选上限：大日历树（42 个日格 + 弹层字段）需要调大
   allowedApps = DEFAULT_ALLOWED_APPS,
   thresholds,
-  decide = jevDecide,
+  decide,
+  decisionProvider = "typesafe",
   emit = defaultEmit,
   traceDir = path.join(PROJECT_DIR, "runs"),
   traceId,
@@ -209,13 +227,14 @@ export async function runTask({
   jevOptions = {},
   verify, // 可选：完整 AX → boolean；提供后以此核验总目标
 }) {
+  const decider = decide ?? resolveDecisionProvider(decisionProvider);
   const runId = traceId ?? `${new Date().toISOString().replace(/[:.]/g, "-")}-${appName.replace(/\W+/g, "")}`;
   fs.mkdirSync(traceDir, { recursive: true });
   const tracePath = path.join(traceDir, `${runId}.jsonl`);
   const record = (entry) => fs.appendFileSync(tracePath, JSON.stringify({ ts: new Date().toISOString(), runId, ...entry }) + "\n");
 
   emit(`[jev-use] run=${runId} app=${appName} dryRun=${dryRun} goal=${goal}`);
-  record({ event: "start", appName, goal, dryRun, maxSteps, plan });
+  record({ event: "start", appName, goal, dryRun, maxSteps, plan, decisionProvider: decide ? "custom" : decisionProvider });
 
   await driver.bind(appName);
   let observation = await driver.observe({ full: true });
@@ -260,7 +279,7 @@ export async function runTask({
 
     let decision;
     try {
-      decision = await decide({
+      decision = await decider({
         goal: stepGoal,
         app: appName,
         candidates,
