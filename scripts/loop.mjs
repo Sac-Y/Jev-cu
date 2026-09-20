@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { decide as jevDecide } from "./jev-decide.mjs";
 import { evaluatePolicy, DEFAULT_ALLOWED_APPS } from "./policy.mjs";
+import { routingOptions, checkRoute, callPlanner } from "./routing.mjs";
 
 const PROJECT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -196,7 +197,11 @@ export async function runTask({
   plan = "", // Planner（Codex 模型）给出的步骤计划：模型决定"做什么"，Jev 决定"点哪里"
   jevOptions = {},
   verify, // 可选：完整 AX → boolean；提供后以此核验总目标
+  routing = false, // Opt-in; the default four-question loop stays unchanged.
+  onHandoff, // Optional host-owned reasoning/vision callback; its output is never executed.
 }) {
+  const routeOptions = routingOptions(routing);
+  if (onHandoff !== undefined && typeof onHandoff !== "function") throw new TypeError("onHandoff must be a function");
   const runId = traceId ?? `${new Date().toISOString().replace(/[:.]/g, "-")}-${appName.replace(/\W+/g, "")}`;
   fs.mkdirSync(traceDir, { recursive: true });
   const tracePath = path.join(traceDir, `${runId}.jsonl`);
@@ -209,21 +214,29 @@ export async function runTask({
   let observation = await driver.observe({ full: true });
   const recentActions = [];
   const startedAt = Date.now();
+  let reobservations = 0;
+  let noProgress = 0;
+  let executedActions = 0;
+  let activeGoal = goal;
 
   for (let step = 1; step <= maxSteps; step++) {
     // Planner 可以直接注入确定性步骤（画布坐标点击/拖拽/输入），无需 Jev 判断；
     // 需要判断"点哪个工具栏/面板元素"的步骤才交给 Jev。
     const planned = typeof resources === "function" ? ((await resources(step, null)) ?? {}) : {};
+    activeGoal = planned.jevGoal ?? goal;
     if (planned.skipJev) {
       // 旧的 Planner 通道没有可验证的目标/风险，不再绕过策略直接执行。
       return finish(dryRun ? "dry_run" : "escalate", {
-        steps: step - 1, tracePath, planned,
+        steps: routeOptions ? executedActions : step - 1, tracePath, planned,
         message: "Planner 直接动作仅可预览；请在当前 Computer Use 调用中审查并执行，不计为 Jev 决策",
         elapsedMs: Date.now() - startedAt,
       });
     }
     if (verify && await verify(observation)) {
-      return finish("done", { steps: step - 1, tracePath, verified: true, elapsedMs: Date.now() - startedAt });
+      return finish("done", { steps: routeOptions ? executedActions : step - 1, tracePath, verified: true, elapsedMs: Date.now() - startedAt });
+    }
+    if (routeOptions?.requirePlanner) {
+      return handoff(routeOptions.requirePlanner, step);
     }
     const stepGoal = planned.jevGoal ?? goal;
 
@@ -234,8 +247,9 @@ export async function runTask({
       candidates = selectCandidates(parseAX(observation), stepGoal, { max: candidateMax });
       if (candidates.length < 2) {
         record({ event: "no_candidates", step });
+        if (routeOptions) return handoff("missing_candidates", step);
         return finish("escalate", {
-          steps: step - 1,
+          steps: routeOptions ? executedActions : step - 1,
           tracePath,
           message: "候选元素不足，无法决策",
           elapsedMs: Date.now() - startedAt,
@@ -256,15 +270,32 @@ export async function runTask({
         recentActions,
         constraints: [planned.jevPlan ?? "", plan ? `Plan (from planner): ${plan}` : "", constraints].filter(Boolean).join("\n"),
         ...jevOptions,
+        routing: Boolean(routeOptions),
       });
     } catch (err) {
       record({ event: "decide_error", step, message: err.message });
       return { status: "error", step, message: err.message, tracePath };
     }
 
+    if (routeOptions) {
+      const route = checkRoute(decision, routeOptions);
+      record({ event: "route", step, ...route, confidence: decision?.routeConfidence });
+      if (route.route === "handoff") return handoff(route.reason, step);
+      if (route.route === "reobserve") {
+        if (dryRun) return finish("dry_run", {
+          steps: 0, tracePath, planned: { route: "reobserve" }, elapsedMs: Date.now() - startedAt,
+        });
+        if (reobservations >= routeOptions.maxReobservations) return handoff("reobserve_budget", step);
+        reobservations++;
+        observation = await driver.observe({ full: true });
+        recentActions.push("reobserve (no action executed)");
+        continue;
+      }
+    }
+
     const invalidTarget = decision.targetIndex != null && !candidates.some(c => c.index === decision.targetIndex);
     if (invalidTarget) {
-      return finish("escalate", { steps: step - 1, tracePath, message: "目标不在当前候选集中", elapsedMs: Date.now() - startedAt });
+      return finish("escalate", { steps: routeOptions ? executedActions : step - 1, tracePath, message: "目标不在当前候选集中", elapsedMs: Date.now() - startedAt });
     }
     const gate = evaluatePolicy({ decision, app: appName, allowedApps, step, maxSteps, thresholds, dryRun });
     const target = decision.targetIndex != null ? `i${decision.targetIndex} (${decision.targetLabel ?? "?"})` : "—";
@@ -276,13 +307,13 @@ export async function runTask({
     record({ event: "step", step, candidates: candidates.length, decision: stripRaw(decision), gate });
 
     if (gate.verdict === "done" && (verify || stepGoal !== goal)) {
-      return finish("escalate", { steps: step - 1, tracePath, decision, message: "Jev 判断完成，但总目标尚未核验；请检查当前阶段", elapsedMs: Date.now() - startedAt });
+      return finish("escalate", { steps: routeOptions ? executedActions : step - 1, tracePath, decision, message: "Jev 判断完成，但总目标尚未核验；请检查当前阶段", elapsedMs: Date.now() - startedAt });
     }
     if (gate.verdict === "done") {
-      return finish("done", { steps: step - 1, tracePath, decision, gate, elapsedMs: Date.now() - startedAt });
+      return finish("done", { steps: routeOptions ? executedActions : step - 1, tracePath, decision, gate, elapsedMs: Date.now() - startedAt });
     }
     if (gate.verdict !== "proceed") {
-      return finish(gate.verdict, { steps: step - 1, tracePath, decision, gate, elapsedMs: Date.now() - startedAt });
+      return finish(gate.verdict, { steps: routeOptions ? executedActions : step - 1, tracePath, decision, gate, elapsedMs: Date.now() - startedAt });
     }
     if (dryRun) {
       return finish("dry_run", {
@@ -299,6 +330,7 @@ export async function runTask({
     const stepResources = typeof resources === "function" ? ((await resources(step, decision)) ?? {}) : resources;
     try {
       await executeAction(driver, decision, stepResources);
+      executedActions++;
     } catch (err) {
       record({ event: "action_error", step, message: err.message });
       return finish("error", { steps: step, tracePath, message: `动作执行失败：${err.message}`, elapsedMs: Date.now() - startedAt });
@@ -311,12 +343,38 @@ export async function runTask({
     recentActions.push(`${decision.action} i${decision.targetIndex} → ${noChange ? "no change" : "changed"}`);
     emit(`         └ 动作 ${actMs}ms · ${noChange ? "界面无变化" : "界面已变化"}`);
     record({ event: "action", step, actMs, noChange, action: decision.action, targetIndex: decision.targetIndex });
+    if (routeOptions) {
+      noProgress = noChange ? noProgress + 1 : 0;
+      if (verify && await verify(observation)) {
+        return finish("done", { steps: executedActions, tracePath, verified: true, elapsedMs: Date.now() - startedAt });
+      }
+      if (noProgress >= routeOptions.maxNoProgress) return handoff("no_observed_progress", step);
+    }
   }
 
   if (verify && await verify(observation)) {
-    return finish("done", { steps: maxSteps, tracePath, verified: true, elapsedMs: Date.now() - startedAt });
+    return finish("done", { steps: routeOptions ? executedActions : maxSteps, tracePath, verified: true, elapsedMs: Date.now() - startedAt });
   }
-  return finish("max_steps", { steps: maxSteps, tracePath, elapsedMs: Date.now() - startedAt });
+  return finish("max_steps", { steps: routeOptions ? executedActions : maxSteps, tracePath, elapsedMs: Date.now() - startedAt });
+
+  async function handoff(reason, step) {
+    const request = {
+      reason, goal, subgoal: activeGoal, appName, step, executedActions,
+      context: buildContext(observation),
+      recentActions: recentActions.slice(-6),
+    };
+    // No screenshots, driver object, action arguments, or old executable candidates.
+    // The host must select what may be forwarded to its configured planner.
+    const planner = !dryRun && onHandoff
+      ? await callPlanner(onHandoff, request, routeOptions.handoffTimeoutMs)
+      : { status: "not_called" };
+    const result = finish(dryRun ? "dry_run" : "handoff", {
+      steps: executedActions, tracePath, handoff: request,
+      plannerStatus: planner.status, elapsedMs: Date.now() - startedAt,
+    });
+    // Planner content stays out of the trace and cannot enter executeAction.
+    return planner.status === "completed" ? { ...result, plannerResult: planner.value } : result;
+  }
 
   function finish(status, extra) {
     record({ event: "finish", status, ...extra });

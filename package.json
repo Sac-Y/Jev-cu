@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "p0": "node scripts/p0-eval.mjs",
-    "test": "node --test tests/core.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "install-skill": "node scripts/install-skill.mjs",
     "uninstall-skill": "node scripts/install-skill.mjs --uninstall"
   },
