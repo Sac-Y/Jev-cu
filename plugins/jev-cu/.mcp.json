@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "jev": {
+      "command": "./bin/jev-cu-mcp",
+      "args": [],
+      "cwd": ".",
+      "env_vars": []
+    }
+  }
+}

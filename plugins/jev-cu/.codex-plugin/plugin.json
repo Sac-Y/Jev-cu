@@ -16,6 +16,7 @@
     "mcp"
   ],
   "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Jev-cu",
     "shortDescription": "Jev decisions for Computer Use",

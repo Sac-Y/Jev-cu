@@ -24,5 +24,13 @@ test("marketplace points to the namesake plugin", () => {
   assert.equal(manifest.author.name, "rainhan99");
   assert.equal(manifest.skills, "./skills/");
   assert.equal(manifest.interface.category, "Productivity");
-  assert.equal(Object.hasOwn(manifest, "mcpServers"), false);
+  assert.equal(manifest.mcpServers, "./.mcp.json");
+});
+
+test("manifest MCP files exist and the launcher is executable", () => {
+  const manifest = readJson(new URL("../.codex-plugin/plugin.json", import.meta.url));
+  assert.equal(manifest.mcpServers, "./.mcp.json");
+  assert.equal(fs.existsSync(new URL("../.mcp.json", import.meta.url)), true);
+  const launcher = fs.statSync(new URL("../bin/jev-cu-mcp", import.meta.url));
+  assert.ok((launcher.mode & 0o111) !== 0);
 });
