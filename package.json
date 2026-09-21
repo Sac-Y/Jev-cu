@@ -1,18 +1,21 @@
 {
   "name": "jev-cu",
-  "version": "0.1.0",
-  "description": "Jev（TypeSafe System One）决策 + Codex Computer Use 执行：skill 与运行循环",
+  "version": "0.2.0",
+  "description": "Jev decisions for Codex Computer Use through a local STDIO MCP server",
   "private": true,
   "scripts": {
-    "p0": "node scripts/p0-eval.mjs",
-    "test": "npm --prefix plugins/jev-cu test && node --test tests/core.test.mjs",
+    "test": "npm --prefix plugins/jev-cu test",
     "build": "npm --prefix plugins/jev-cu run build",
-    "validate": "npm --prefix plugins/jev-cu run validate",
-    "install-skill": "node scripts/install-skill.mjs",
-    "uninstall-skill": "node scripts/install-skill.mjs --uninstall"
+    "validate": "npm --prefix plugins/jev-cu run validate"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "jev",
+    "codex",
+    "mcp",
+    "computer-use"
+  ],
+  "author": "rainhan99",
+  "repository": "https://github.com/rainhan99/Jev-cu",
   "license": "ISC",
   "type": "module"
 }

@@ -62,3 +62,19 @@ test("context is bounded and preserves the visible state", () => {
   assert.match(result.context, /September 2026/);
   assert.ok(result.context.length <= 1_500);
 });
+
+test("small candidate budgets retain the relevant Calendar navigation buttons", () => {
+  const result = collectCandidates(readFixture("calendar-en.txt"), "previous month", { max: 3 });
+  assert.ok(result.candidates.some((item) => item.index === 56));
+  assert.ok(result.candidates.some((item) => item.index === 58));
+});
+
+test("context preserves a Calculator display value", () => {
+  const snapshot = [
+    'Window: "Calculator", App: Calculator.',
+    "0 standard window Calculator",
+    "\t4 text 42",
+    "\t24 button Equals",
+  ].join("\n");
+  assert.match(collectCandidates(snapshot, "read result").context, /42/);
+});

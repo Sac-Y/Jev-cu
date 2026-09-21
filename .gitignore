@@ -2,7 +2,6 @@ node_modules/
 .worktrees/
 .env
 .env.*
-!.env.example
 runs/
 .DS_Store
 

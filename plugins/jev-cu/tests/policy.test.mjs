@@ -48,6 +48,14 @@ test("very low confidence stops and intermediate confidence escalates", () => {
   assert.equal(gate({ ...safeDecision, confidence: 0.35 }).verdict, "escalate");
 });
 
+test("low-risk apps use the documented relaxed confidence threshold", () => {
+  assert.equal(gate({ ...safeDecision, confidence: 0.46 }).verdict, "proceed");
+  assert.equal(gate(
+    { ...safeDecision, confidence: 0.46 },
+    { app: "NetEaseMusic" },
+  ).verdict, "escalate");
+});
+
 test("sensitive Chinese and English labels require confirmation", () => {
   assert.equal(matchSensitive("按钮 删除歌曲").id, "delete");
   assert.equal(matchSensitive("button Send message").id, "send");
