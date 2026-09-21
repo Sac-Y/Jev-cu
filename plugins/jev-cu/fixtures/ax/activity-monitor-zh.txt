@@ -1,0 +1,11 @@
+窗口：“活动监视器”，App：活动监视器。
+0 标准窗口 活动监视器, ID: main-window, Secondary Actions: Raise
+	1 工具栏
+		2 按钮 停止, ID: stop-process
+		3 单选按钮 CPU, Value: 1, ID: cpu-tab
+		4 复选框 显示所有进程, Value: 0
+		5 文本栏 搜索
+		6 神秘控件 Example
+	7 列表 进程列表
+		8 链接 WindowServer
+当前聚焦的 UI 元素是 3 单选按钮 CPU

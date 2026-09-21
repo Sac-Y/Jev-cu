@@ -1,0 +1,21 @@
+Window: "Calendar", App: Calendar.
+0 standard window Calendar, ID: CALMainWindow, Secondary Actions: Raise
+	1 split group
+		2 container Description: Month Calendar Area, Value: 9/18/26, ID: active-view
+			4 list Sunday, August 30
+			5 list Monday, August 31
+			6 list Tuesday, September 1
+			31 list Today, Friday, September 18
+			56 button previous month
+			57 button Today, ID: today-button
+			58 button next month
+			59 text Value: September 2026, ID: view-date-title
+	60 toolbar
+		62 radio button Description: Calendars, Value: 0, ID: calendars-button
+		64 button Description: Add Event, Secondary Actions: Move previous, Move next, Remove from toolbar
+		67 radio button Description: Day, Value: 0, ID: day-button
+		68 radio button Description: Week, Value: 0, ID: week-button
+		69 radio button Description: Month, Value: 1, ID: month-button
+		71 button Search
+	72 close button
+The focused UI element is 2 container Description: Month Calendar Area
