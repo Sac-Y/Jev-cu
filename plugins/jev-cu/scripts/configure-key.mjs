@@ -2,14 +2,16 @@
 import { pathToFileURL } from "node:url";
 
 import { createCredentialStore } from "../server/credentials.mjs";
-import { readHiddenLine, SetupError } from "../server/setup-dialog.mjs";
 
-export async function main(args = process.argv.slice(2)) {
-  if (args.includes("--test-cancel")) return 2;
-  const secret = await readHiddenLine();
-  if (!secret) return 2;
-  await createCredentialStore().write(secret);
-  process.stderr.write("Jev API key saved in macOS Keychain.\n");
+export async function main(args = process.argv.slice(2), { store = createCredentialStore() } = {}) {
+  const fromIndex = args.indexOf("--from");
+  const sourcePath = fromIndex >= 0 ? args[fromIndex + 1] : undefined;
+  if (!sourcePath || args.length !== 2) {
+    process.stderr.write("Usage: configure-key.mjs --from /path/to/.env.local\n");
+    return 2;
+  }
+  await store.importFromEnv(sourcePath);
+  process.stderr.write(`Jev API key imported into ${store.path}.\n`);
   return 0;
 }
 
@@ -18,10 +20,7 @@ if (isMain) {
   main()
     .then((code) => { process.exitCode = code; })
     .catch((error) => {
-      const message = error instanceof SetupError && error.code === "cancelled"
-        ? "Jev credential setup cancelled."
-        : "Unable to save the Jev API key.";
-      process.stderr.write(`${message}\n`);
-      process.exitCode = error?.code === "cancelled" ? 2 : 1;
+      process.stderr.write(`Unable to import the Jev API key (${error?.code ?? "unknown_error"}).\n`);
+      process.exitCode = 1;
     });
 }

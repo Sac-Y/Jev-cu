@@ -9,6 +9,10 @@ import { createToolHandlers } from "./tool-handlers.mjs";
 
 const emptySchema = z.object({}).strict();
 
+const configureSchema = z.object({
+  source_file: z.string().min(1).max(4_096).optional(),
+}).strict();
+
 const candidatesSchema = z.object({
   accessibility_text: z.string().min(1).max(50_000),
   goal: z.string().min(1).max(500),
@@ -36,6 +40,8 @@ const SAFE_MESSAGES = Object.freeze({
   unsupported_platform: "Jev-cu currently supports macOS only",
   not_configured: "The Jev credential is not configured",
   credential_unavailable: "The Jev credential is unavailable",
+  credential_source_unavailable: "The source credential file is unavailable",
+  invalid_credential_file: "The source credential file is invalid",
   authentication_failed: "Jev authentication failed",
   rate_limited: "Jev rate limit exceeded",
   service_unavailable: "Jev service is unavailable",
@@ -79,14 +85,14 @@ export function createMcpServer({ handlers, ...handlerOptions } = {}) {
   const server = new McpServer({ name: "jev-cu", version: "0.2.0" });
 
   server.registerTool("jev_status", {
-    description: "Check whether Jev-cu supports this Mac and has a configured Keychain credential.",
+    description: "Check whether Jev-cu supports this Mac and has a protected local credential file.",
     inputSchema: emptySchema,
   }, safeTool(() => activeHandlers.status()));
 
   server.registerTool("jev_configure", {
-    description: "Open a native hidden macOS dialog and save a Jev API key directly to Keychain.",
-    inputSchema: emptySchema,
-  }, safeTool(() => activeHandlers.configure()));
+    description: "Import a Jev API key from an existing env file into protected local storage without returning the secret.",
+    inputSchema: configureSchema,
+  }, safeTool((input) => activeHandlers.configure(input)));
 
   server.registerTool("jev_candidates", {
     description: "Normalize bounded English or Chinese macOS accessibility text into stable UI candidates.",

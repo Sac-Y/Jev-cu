@@ -6,8 +6,8 @@ import { createCredentialStore } from "../server/credentials.mjs";
 export async function main() {
   const result = await createCredentialStore().clear();
   process.stderr.write(result.cleared
-    ? "Jev API key removed from macOS Keychain.\n"
-    : "No Jev API key was stored in macOS Keychain.\n");
+    ? "Jev API key removed from the local credential file.\n"
+    : "No Jev API key was stored in the local credential file.\n");
   return 0;
 }
 

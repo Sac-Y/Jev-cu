@@ -10,7 +10,7 @@ Jev 只负责从当前候选控件中推荐一个目标与动作；Codex 负责�
 ## 开始前
 
 1. 调用 `jev_status`。若返回 `unsupported_platform`，停止；当前版本只支持 macOS。
-2. 若返回 `not_configured`，说明 `jev_configure` 将打开原生隐藏输入框并把密钥直接保存到 macOS Keychain。只有用户明确同意后才调用 `jev_configure`，不要让用户把密钥发到聊天中。
+2. 若返回 `not_configured`，请用户给出现有 env 文件的绝对路径；文件必须含 `TYPESAFE_API_KEY=...` 或 `JEV_API_KEY=...`。调用 `jev_configure` 时只传 `source_file`，让它导入到权限为 `0600` 的本地凭据文件。不要让用户把密钥发到聊天中。
 3. 明确目标 App、允许的动作范围、最多步数，以及可以从界面重新读取的成功判据。优先把长任务拆成短阶段。
 4. 首次使用 Computer Use 时，先单独调用对应入口并阅读它返回的当前文档；当前工具文档优先于示例。
 
@@ -49,8 +49,8 @@ Jev 只负责从当前候选控件中推荐一个目标与动作；Codex 负责�
 
 ## 排障
 
-- `not_configured`：经用户同意后运行 `jev_configure`。
-- `authentication_failed`：重新配置 Keychain 密钥；不要在聊天或日志中显示旧值。
+- `not_configured`：运行 `jev_configure`，只传含密钥的 env 文件绝对路径。
+- `authentication_failed`：从正确的 env 文件重新导入；不要在聊天或日志中显示旧值。
 - `rate_limited`、`service_unavailable`、`network_failed`：有界重试耗尽后报告，不切回 `cua_repl` 网络请求。
 - 候选为空：检查 AX 状态、语言角色映射和任务范围；不要盲目扩大到整棵私人内容树。
 - 动作结果不明：先重新观察，不直接重放。

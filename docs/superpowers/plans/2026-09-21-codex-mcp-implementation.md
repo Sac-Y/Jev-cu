@@ -1,5 +1,13 @@
 # Jev-cu Codex MCP Implementation Plan
 
+> Amendment (2026-09-21): during first-use testing, the user replaced the
+> Keychain/hidden-dialog requirement with import from an existing env file.
+> The final implementation stores the imported key at
+> `~/Library/Application Support/Jev-cu/credentials.env` with directory mode
+> `0700` and file mode `0600`. Historical Task 4 and Task 8 steps below record
+> the original plan; this amendment and the final verification supersede their
+> Keychain-specific wording.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn Jev-cu into a macOS Codex plugin that installs from the `rainhan99/Jev-cu` Git marketplace, obtains its API key through a hidden native prompt, and exposes safe Jev decisions through a local STDIO MCP server.

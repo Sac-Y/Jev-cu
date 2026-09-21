@@ -11,17 +11,18 @@ codex plugin marketplace add rainhan99/Jev-cu
 codex plugin add jev-cu@jev-cu-community
 ```
 
-安装后新建一个 Codex 任务，使 skill 与 MCP 工具重新加载。调用 `$jev-use`；首次使用时，Codex 会先检查状态，并在你明确同意后打开原生隐藏输入框采集 Jev API key。
+安装后新建一个 Codex 任务，使 skill 与 MCP 工具重新加载。调用 `$jev-use`；首次使用时，Codex 会先检查状态，并从你指定的现有 env 文件导入 Jev API key。
 
-密钥直接保存到 macOS Keychain：
+密钥保存在当前 macOS 用户的本地配置目录：
 
-- Service：`ai.typesafe.jev-cu`
-- Account：`api-key`
+- 路径：`~/Library/Application Support/Jev-cu/credentials.env`
+- 目录权限：`0700`
+- 文件权限：`0600`
 
-密钥不会进入聊天、MCP 参数、插件配置、命令行参数或日志。恢复场景也可以在源码目录运行：
+源文件支持 `TYPESAFE_API_KEY=...` 或 `JEV_API_KEY=...`。MCP 参数只包含源文件路径，密钥不会进入聊天、MCP 参数、命令行参数或日志。也可以在源码目录直接导入：
 
 ```bash
-node plugins/jev-cu/scripts/configure-key.mjs
+node plugins/jev-cu/scripts/configure-key.mjs --from /path/to/.env.local
 node plugins/jev-cu/scripts/clear-key.mjs
 ```
 
@@ -65,8 +66,8 @@ npm run validate
 
 ## 排障
 
-- `not_configured`：同意后调用 `jev_configure`，或运行恢复脚本。
-- `authentication_failed` / HTTP `401`、`403`：重新配置 Keychain 密钥。
+- `not_configured`：调用 `jev_configure` 并传入已有 env 文件的绝对路径，或运行恢复脚本。
+- `authentication_failed` / HTTP `401`、`403`：从正确的 env 文件重新导入密钥。
 - `rate_limited` / HTTP `429`：等待限流窗口恢复后重试。
 - `service_unavailable` / HTTP `5xx`：服务端暂不可用；有界重试耗尽后停止。
 - `network_failed`：检查普通 Node 进程的公网连接；不要改回 `cua_repl` 直接联网。
@@ -79,7 +80,7 @@ MCP 工具 schema 与核心模块没有 Codex API 依赖，已为 Claude Desktop
 
 ## 安全边界
 
-- MCP 服务只读 Keychain、调用固定 TypeSafe endpoint，并返回结构化建议。
+- MCP 服务只读权限受限的本地凭据文件、调用固定 TypeSafe endpoint，并返回结构化建议。
 - MCP 不暴露 shell、任意 URL 抓取或通用 UI 操作工具。
 - Jev 只能选择本次提交的候选 ID。
 - 每次只执行一个动作，随后重新观察；旧索引一律失效。

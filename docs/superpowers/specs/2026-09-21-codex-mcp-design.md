@@ -18,7 +18,7 @@ Chinese macOS session can fail before the Jev request is made.
 - Move public network access into a local STDIO MCP server.
 - Keep UI observation and UI actions in Codex Computer Use.
 - Support English and Chinese macOS accessibility role names.
-- Collect the Jev API key interactively and store it in macOS Keychain.
+- Import the Jev API key from an existing env file into protected local storage.
 - Keep the MCP protocol and core modules host-neutral so Claude Desktop support
   can be added without rewriting the decision engine.
 
@@ -78,14 +78,15 @@ transport.
 
 ### `jev_status`
 
-Reports whether the runtime is supported, whether a Keychain credential exists,
+Reports whether the runtime is supported, whether a local credential file exists,
 and whether the server is ready. It never returns the key.
 
 ### `jev_configure`
 
-After explicit user approval, opens a native macOS password dialog, stores the
-submitted value in Keychain, and returns only whether configuration succeeded or
-was cancelled. The key never appears in the tool input, output, or chat.
+Accepts only the absolute path of an existing env file, imports
+`TYPESAFE_API_KEY` or `JEV_API_KEY` into protected local storage, and returns
+only whether configuration succeeded. The key never appears in the tool input,
+output, or chat.
 
 ### `jev_candidates`
 
@@ -109,7 +110,8 @@ register the same tools unchanged.
 1. The skill asks Computer Use for the current accessibility snapshot.
 2. Codex calls `jev_candidates` outside the Computer Use JavaScript runtime.
 3. Codex calls `jev_decide` with the current goal and candidate list.
-4. The server loads the API key from Keychain and contacts the TypeSafe API.
+4. The server loads the API key from the protected credential file and contacts
+   the TypeSafe API.
 5. The server validates Jev's selected candidate and applies the local policy.
 6. The skill asks Computer Use to perform one allowed action.
 7. The skill observes the UI again and verifies the expected state change.
@@ -121,19 +123,18 @@ No network request is performed inside `cua_repl`.
 ## Credentials and installation
 
 Codex installs the plugin by first adding the Git repository as a marketplace
-and then installing `jev-cu` from it. Marketplace installation itself has no
-secure secret prompt, so first-use setup calls `jev_configure` only after the
-user agrees. It displays a native macOS password dialog with hidden input. A
-terminal configuration script provides the same operation for recovery. The
-value is stored in macOS Keychain under a Jev-cu-specific service/account pair
-by invoking `/usr/bin/security` without shell interpolation or placing the key
-in process arguments.
+and then installing `jev-cu` from it. First-use setup calls `jev_configure` with
+the absolute path of an env file that already contains `TYPESAFE_API_KEY` or
+`JEV_API_KEY`. A terminal configuration script provides the same import path for
+recovery. The value is copied to
+`~/Library/Application Support/Jev-cu/credentials.env`; the containing directory
+uses mode `0700` and the file uses mode `0600`.
 
 The MCP server reads the key only when needed. The key is never placed in plugin
 configuration, command-line arguments, stdout, MCP results, logs, or chat.
 
-Re-running configuration replaces the existing Keychain item. A separate clear
-command removes only the Jev-cu credential. Installer changes are scoped and
+Re-running configuration atomically replaces the existing credential file. A
+separate clear command removes only that file. Installer changes are scoped and
 recoverable.
 
 ## Safety policy
@@ -154,7 +155,7 @@ recoverable.
 - Missing key: return a structured `not_configured` result with the local setup
   command, without repeatedly calling the API.
 - Authentication failure: return `authentication_failed` and direct the user to
-  reconfigure the Keychain item.
+  import the correct env file again.
 - Network or service failure: return a retryable error with bounded retries and
   no hidden fallback to direct `cua_repl` networking.
 - Invalid model output: reject it locally and return the validation reason.
@@ -197,7 +198,7 @@ Automated tests cover:
 - English and Chinese AX parsing and canonicalization.
 - Candidate bounds and stable identifiers.
 - Policy rejection of unknown, unsafe, and malformed selections.
-- Keychain command construction with a mocked process boundary.
+- Protected credential-file import, parsing, permissions, and removal.
 - Jev request, response validation, authentication, and network failures using a
   fake HTTP transport.
 - MCP tool schemas and STDIO startup without stdout noise.
@@ -214,6 +215,6 @@ real key, and completes a harmless one-action Computer Use task.
 2. Extract the reusable core from the current scripts.
 3. Implement the STDIO MCP server.
 4. Package the Codex plugin and rewrite the skill workflow.
-5. Add interactive Keychain setup and Codex installation.
+5. Add protected local credential import and Codex installation.
 6. Run automated and manual smoke verification.
 7. Document the Claude Desktop extension points without enabling them yet.

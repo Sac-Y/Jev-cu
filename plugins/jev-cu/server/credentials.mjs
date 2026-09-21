@@ -1,7 +1,18 @@
-import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
 
-export const KEYCHAIN_SERVICE = "ai.typesafe.jev-cu";
-export const KEYCHAIN_ACCOUNT = "api-key";
+const MAX_SECRET_LENGTH = 4_096;
+const SUPPORTED_ENV_NAMES = new Set(["TYPESAFE_API_KEY", "JEV_API_KEY"]);
+
+export const DEFAULT_CREDENTIAL_PATH = path.join(
+  os.homedir(),
+  "Library",
+  "Application Support",
+  "Jev-cu",
+  "credentials.env",
+);
 
 export class CredentialError extends Error {
   constructor(code, message, { cause } = {}) {
@@ -11,109 +22,131 @@ export class CredentialError extends Error {
   }
 }
 
-function appendBounded(current, chunk, maximum) {
-  if (current.length >= maximum) return current;
-  return (current + chunk.toString("utf8")).slice(0, maximum);
+function validSecret(secret) {
+  return typeof secret === "string"
+    && secret.length > 0
+    && secret.length <= MAX_SECRET_LENGTH
+    && !/[\0\r\n]/.test(secret);
 }
 
-export function runProcess(command, args, { stdin, maxOutputBytes = 65_536 } = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      shell: false,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout = appendBounded(stdout, chunk, maxOutputBytes);
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr = appendBounded(stderr, chunk, maxOutputBytes);
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
-    child.stdin.end(stdin ?? "");
-  });
+function decodeEnvValue(raw) {
+  const value = raw.trim();
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1);
+  return value;
 }
 
-function isMissing(result) {
-  return result.code === 44 || /could not be found|item not found/i.test(result.stderr);
+export function parseEnvCredential(contents) {
+  if (typeof contents !== "string" || contents.length > 65_536) {
+    throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
+  }
+
+  for (const line of contents.split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || !SUPPORTED_ENV_NAMES.has(match[1])) continue;
+    const secret = decodeEnvValue(match[2]);
+    if (validSecret(secret)) return secret;
+    break;
+  }
+  throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
 }
 
 function unavailable(cause) {
-  return new CredentialError("credential_unavailable", "The Jev credential is unavailable in macOS Keychain", { cause });
+  return new CredentialError("credential_unavailable", "The Jev credential file is unavailable", { cause });
 }
 
-export function createCredentialStore({ spawnImpl = runProcess } = {}) {
-  const findArgs = [
-    "find-generic-password",
-    "-a", KEYCHAIN_ACCOUNT,
-    "-s", KEYCHAIN_SERVICE,
-    "-w",
-  ];
+function sourceUnavailable(cause) {
+  return new CredentialError(
+    "credential_source_unavailable",
+    "The source credential file is unavailable",
+    { cause },
+  );
+}
 
-  async function find() {
-    let result;
+export function createCredentialStore({ filePath = DEFAULT_CREDENTIAL_PATH, fsImpl = fs } = {}) {
+  async function readConfigured() {
+    let contents;
     try {
-      result = await spawnImpl("/usr/bin/security", findArgs, {});
+      contents = await fsImpl.readFile(filePath, "utf8");
     } catch (cause) {
+      if (cause?.code === "ENOENT") return { configured: false, secret: null };
       throw unavailable(cause);
     }
-    if (result.code === 0) return { configured: true, secret: result.stdout.replace(/\r?\n$/, "") };
-    if (isMissing(result)) return { configured: false, secret: null };
-    throw unavailable();
+    return { configured: true, secret: parseEnvCredential(contents) };
+  }
+
+  async function write(secret) {
+    if (!validSecret(secret)) {
+      throw new CredentialError("invalid_credential", "The Jev credential cannot be empty or malformed");
+    }
+    const directory = path.dirname(filePath);
+    const temporaryPath = `${filePath}.tmp-${process.pid}-${randomUUID()}`;
+    try {
+      await fsImpl.mkdir(directory, { recursive: true, mode: 0o700 });
+      await fsImpl.chmod(directory, 0o700);
+      await fsImpl.writeFile(
+        temporaryPath,
+        `TYPESAFE_API_KEY=${JSON.stringify(secret)}\n`,
+        { encoding: "utf8", mode: 0o600, flag: "wx" },
+      );
+      await fsImpl.chmod(temporaryPath, 0o600);
+      await fsImpl.rename(temporaryPath, filePath);
+      await fsImpl.chmod(filePath, 0o600);
+    } catch (cause) {
+      try {
+        await fsImpl.unlink(temporaryPath);
+      } catch {
+        // The temporary file may not have been created.
+      }
+      throw unavailable(cause);
+    }
+    return { configured: true };
   }
 
   return {
+    path: filePath,
+
     async status() {
-      const result = await find();
+      const result = await readConfigured();
       return { configured: result.configured };
     },
 
     async read() {
-      const result = await find();
-      if (!result.configured || !result.secret) {
+      const result = await readConfigured();
+      if (!result.configured) {
         throw new CredentialError("not_configured", "The Jev credential is not configured");
       }
       return result.secret;
     },
 
-    async write(secret) {
-      if (typeof secret !== "string" || secret.length === 0) {
-        throw new CredentialError("invalid_credential", "The Jev credential cannot be empty");
-      }
-      const args = [
-        "add-generic-password",
-        "-a", KEYCHAIN_ACCOUNT,
-        "-s", KEYCHAIN_SERVICE,
-        "-U",
-        "-w",
-      ];
-      let result;
+    write,
+
+    async importFromEnv(sourcePath) {
+      let contents;
       try {
-        result = await spawnImpl("/usr/bin/security", args, { stdin: `${secret}\n` });
+        contents = await fsImpl.readFile(sourcePath, "utf8");
       } catch (cause) {
-        throw unavailable(cause);
+        throw sourceUnavailable(cause);
       }
-      if (result.code !== 0) throw unavailable();
+      const secret = parseEnvCredential(contents);
+      await write(secret);
       return { configured: true };
     },
 
     async clear() {
-      const args = [
-        "delete-generic-password",
-        "-a", KEYCHAIN_ACCOUNT,
-        "-s", KEYCHAIN_SERVICE,
-      ];
-      let result;
       try {
-        result = await spawnImpl("/usr/bin/security", args, {});
+        await fsImpl.unlink(filePath);
+        return { cleared: true };
       } catch (cause) {
+        if (cause?.code === "ENOENT") return { cleared: false };
         throw unavailable(cause);
       }
-      if (result.code === 0) return { cleared: true };
-      if (isMissing(result)) return { cleared: false };
-      throw unavailable();
     },
   };
 }

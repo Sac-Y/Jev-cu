@@ -1,8 +1,9 @@
+import path from "node:path";
+
 import { collectCandidates } from "./candidates.mjs";
 import { createCredentialStore } from "./credentials.mjs";
 import { requestDecision as requestJevDecision } from "./jev-client.mjs";
 import { evaluatePolicy } from "./policy.mjs";
-import { promptForApiKey as showApiKeyPrompt } from "./setup-dialog.mjs";
 
 export class HandlerError extends Error {
   constructor(code, message) {
@@ -49,7 +50,6 @@ function validateCandidates(candidates) {
 export function createToolHandlers({
   platform = process.platform,
   credentials = createCredentialStore(),
-  promptForApiKey = showApiKeyPrompt,
   requestDecision = requestJevDecision,
 } = {}) {
   return {
@@ -71,14 +71,25 @@ export function createToolHandlers({
       };
     },
 
-    async configure() {
+    async configure(input = {}) {
       requireMac(platform);
-      const result = await promptForApiKey({ credentials });
-      const saved = result.status === "saved";
+      if (input.source_file === undefined) {
+        return {
+          status: "source_file_required",
+          configured: false,
+          ready: false,
+          credential_path: credentials.path,
+        };
+      }
+      const sourcePath = requireString(input.source_file, "source_file", 4_096);
+      if (!path.isAbsolute(sourcePath)) {
+        throw new HandlerError("invalid_input", "source_file must be an absolute path");
+      }
+      await credentials.importFromEnv(sourcePath);
       return {
-        status: saved ? "saved" : "cancelled",
-        configured: saved,
-        ready: saved,
+        status: "saved",
+        configured: true,
+        ready: true,
       };
     },
 

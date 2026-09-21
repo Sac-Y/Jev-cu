@@ -3262,8 +3262,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path) {
-      let input2 = path;
+    function removeDotSegments(path3) {
+      let input2 = path3;
       const output2 = [];
       let nextSlash = -1;
       let len = 0;
@@ -3672,8 +3672,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path && path !== "/" ? path : void 0;
+        const path3 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path3 && path3 !== "/" ? path3 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -7186,12 +7186,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list, fs, exportName) {
+    function addFormats(ajv, list, fs2, exportName) {
       var _a3;
       var _b;
       (_a3 = (_b = ajv.opts.code).formats) !== null && _a3 !== void 0 ? _a3 : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs[f]);
+        ajv.addFormat(f, fs2[f]);
     }
     module.exports = exports = formatsPlugin;
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -7576,8 +7576,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path, errorMaps, issueData } = params;
-  const fullPath = [...path, ...issueData.path || []];
+  const { data, path: path3, errorMaps, issueData } = params;
+  const fullPath = [...path3, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -7692,11 +7692,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path, key) {
+  constructor(parent, value, path3, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path;
+    this._path = path3;
     this._key = key;
   }
   get path() {
@@ -11650,10 +11650,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path3) {
+  if (!path3)
     return obj;
-  return path.reduce((acc, key) => acc?.[key], obj);
+  return path3.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -11993,11 +11993,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path3, issues) {
   return issues.map((iss) => {
     var _a3;
     (_a3 = iss).path ?? (_a3.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path3);
     return iss;
   });
 }
@@ -12447,16 +12447,16 @@ function flattenError(error62, mapper = (issue2) => issue2.message) {
 }
 function formatError(error62, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error63, path = []) => {
+  const processError = (error63, path3 = []) => {
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path3, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path3, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -12495,17 +12495,17 @@ function formatError(error62, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error62, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error63, path = []) => {
+  const processError = (error63, path3 = []) => {
     var _a3;
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path3, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path3, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -12544,8 +12544,8 @@ function treeifyError(error62, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
+  const path3 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path3) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -28060,11 +28060,11 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getDotPath(path) {
-  if (path.length === 0) {
+function getDotPath(path3) {
+  if (path3.length === 0) {
     return "object root";
   }
-  return path.reduce((acc, seg, index) => {
+  return path3.reduce((acc, seg, index) => {
     if (index === 0) {
       return String(seg);
     }
@@ -30291,13 +30291,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path = ref.slice(1).split("/").filter(Boolean);
-  if (path.length === 0) {
+  const path3 = ref.slice(1).split("/").filter(Boolean);
+  if (path3.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path[0] === defsKey) {
-    const key = path[1] === void 0 ? void 0 : decodeJSONPointerSegment(path[1]);
+  if (path3[0] === defsKey) {
+    const key = path3[1] === void 0 ? void 0 : decodeJSONPointerSegment(path3[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -36480,6 +36480,9 @@ var StdioServerTransport = class {
   }
 };
 
+// server/tool-handlers.mjs
+import path2 from "node:path";
+
 // server/candidates.mjs
 var ROLE_ALIASES = Object.freeze({
   "menu bar main-menu-bar": "menu bar",
@@ -36651,9 +36654,19 @@ function collectCandidates(text, goal = "", { max = 40, maxTextLines = 6 } = {})
 }
 
 // server/credentials.mjs
-import { spawn } from "node:child_process";
-var KEYCHAIN_SERVICE = "ai.typesafe.jev-cu";
-var KEYCHAIN_ACCOUNT = "api-key";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+var MAX_SECRET_LENGTH = 4096;
+var SUPPORTED_ENV_NAMES = /* @__PURE__ */ new Set(["TYPESAFE_API_KEY", "JEV_API_KEY"]);
+var DEFAULT_CREDENTIAL_PATH = path.join(
+  os.homedir(),
+  "Library",
+  "Application Support",
+  "Jev-cu",
+  "credentials.env"
+);
 var CredentialError = class extends Error {
   constructor(code, message, { cause } = {}) {
     super(message, { cause });
@@ -36661,107 +36674,115 @@ var CredentialError = class extends Error {
     this.code = code;
   }
 };
-function appendBounded(current, chunk, maximum) {
-  if (current.length >= maximum) return current;
-  return (current + chunk.toString("utf8")).slice(0, maximum);
+function validSecret(secret) {
+  return typeof secret === "string" && secret.length > 0 && secret.length <= MAX_SECRET_LENGTH && !/[\0\r\n]/.test(secret);
 }
-function runProcess(command, args, { stdin, maxOutputBytes = 65536 } = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      shell: false,
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout = appendBounded(stdout, chunk, maxOutputBytes);
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr = appendBounded(stderr, chunk, maxOutputBytes);
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
-    child.stdin.end(stdin ?? "");
-  });
+function decodeEnvValue(raw) {
+  const value = raw.trim();
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1);
+  return value;
 }
-function isMissing(result) {
-  return result.code === 44 || /could not be found|item not found/i.test(result.stderr);
+function parseEnvCredential(contents) {
+  if (typeof contents !== "string" || contents.length > 65536) {
+    throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
+  }
+  for (const line of contents.split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || !SUPPORTED_ENV_NAMES.has(match[1])) continue;
+    const secret = decodeEnvValue(match[2]);
+    if (validSecret(secret)) return secret;
+    break;
+  }
+  throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
 }
 function unavailable(cause) {
-  return new CredentialError("credential_unavailable", "The Jev credential is unavailable in macOS Keychain", { cause });
+  return new CredentialError("credential_unavailable", "The Jev credential file is unavailable", { cause });
 }
-function createCredentialStore({ spawnImpl = runProcess } = {}) {
-  const findArgs = [
-    "find-generic-password",
-    "-a",
-    KEYCHAIN_ACCOUNT,
-    "-s",
-    KEYCHAIN_SERVICE,
-    "-w"
-  ];
-  async function find() {
-    let result;
+function sourceUnavailable(cause) {
+  return new CredentialError(
+    "credential_source_unavailable",
+    "The source credential file is unavailable",
+    { cause }
+  );
+}
+function createCredentialStore({ filePath = DEFAULT_CREDENTIAL_PATH, fsImpl = fs } = {}) {
+  async function readConfigured() {
+    let contents;
     try {
-      result = await spawnImpl("/usr/bin/security", findArgs, {});
+      contents = await fsImpl.readFile(filePath, "utf8");
     } catch (cause) {
+      if (cause?.code === "ENOENT") return { configured: false, secret: null };
       throw unavailable(cause);
     }
-    if (result.code === 0) return { configured: true, secret: result.stdout.replace(/\r?\n$/, "") };
-    if (isMissing(result)) return { configured: false, secret: null };
-    throw unavailable();
+    return { configured: true, secret: parseEnvCredential(contents) };
+  }
+  async function write(secret) {
+    if (!validSecret(secret)) {
+      throw new CredentialError("invalid_credential", "The Jev credential cannot be empty or malformed");
+    }
+    const directory = path.dirname(filePath);
+    const temporaryPath = `${filePath}.tmp-${process.pid}-${randomUUID()}`;
+    try {
+      await fsImpl.mkdir(directory, { recursive: true, mode: 448 });
+      await fsImpl.chmod(directory, 448);
+      await fsImpl.writeFile(
+        temporaryPath,
+        `TYPESAFE_API_KEY=${JSON.stringify(secret)}
+`,
+        { encoding: "utf8", mode: 384, flag: "wx" }
+      );
+      await fsImpl.chmod(temporaryPath, 384);
+      await fsImpl.rename(temporaryPath, filePath);
+      await fsImpl.chmod(filePath, 384);
+    } catch (cause) {
+      try {
+        await fsImpl.unlink(temporaryPath);
+      } catch {
+      }
+      throw unavailable(cause);
+    }
+    return { configured: true };
   }
   return {
+    path: filePath,
     async status() {
-      const result = await find();
+      const result = await readConfigured();
       return { configured: result.configured };
     },
     async read() {
-      const result = await find();
-      if (!result.configured || !result.secret) {
+      const result = await readConfigured();
+      if (!result.configured) {
         throw new CredentialError("not_configured", "The Jev credential is not configured");
       }
       return result.secret;
     },
-    async write(secret) {
-      if (typeof secret !== "string" || secret.length === 0) {
-        throw new CredentialError("invalid_credential", "The Jev credential cannot be empty");
-      }
-      const args = [
-        "add-generic-password",
-        "-a",
-        KEYCHAIN_ACCOUNT,
-        "-s",
-        KEYCHAIN_SERVICE,
-        "-U",
-        "-w"
-      ];
-      let result;
+    write,
+    async importFromEnv(sourcePath) {
+      let contents;
       try {
-        result = await spawnImpl("/usr/bin/security", args, { stdin: `${secret}
-` });
+        contents = await fsImpl.readFile(sourcePath, "utf8");
       } catch (cause) {
-        throw unavailable(cause);
+        throw sourceUnavailable(cause);
       }
-      if (result.code !== 0) throw unavailable();
+      const secret = parseEnvCredential(contents);
+      await write(secret);
       return { configured: true };
     },
     async clear() {
-      const args = [
-        "delete-generic-password",
-        "-a",
-        KEYCHAIN_ACCOUNT,
-        "-s",
-        KEYCHAIN_SERVICE
-      ];
-      let result;
       try {
-        result = await spawnImpl("/usr/bin/security", args, {});
+        await fsImpl.unlink(filePath);
+        return { cleared: true };
       } catch (cause) {
+        if (cause?.code === "ENOENT") return { cleared: false };
         throw unavailable(cause);
       }
-      if (result.code === 0) return { cleared: true };
-      if (isMissing(result)) return { cleared: false };
-      throw unavailable();
     }
   };
 }
@@ -37026,55 +37047,6 @@ function evaluatePolicy({
   return { verdict: "proceed", reasons: [] };
 }
 
-// server/setup-dialog.mjs
-var JXA_SCRIPT = [
-  'ObjC.import("AppKit");',
-  "const app = $.NSApplication.sharedApplication;",
-  "app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);",
-  "app.finishLaunching;",
-  "app.activateIgnoringOtherApps(true);",
-  "const alert = $.NSAlert.alloc.init;",
-  'alert.messageText = "Jev-cu Setup";',
-  'alert.informativeText = "Enter your Jev API key. It will be stored in macOS Keychain.";',
-  "const field = $.NSSecureTextField.alloc.initWithFrame($.NSMakeRect(0, 0, 360, 24));",
-  "alert.accessoryView = field;",
-  'alert.addButtonWithTitle("Save");',
-  'alert.addButtonWithTitle("Cancel");',
-  "const response = alert.runModal;",
-  'Number(response) === Number($.NSAlertFirstButtonReturn) ? ObjC.unwrap(field.stringValue) : "__JEV_CANCELLED__";'
-].join("\n");
-var SetupError = class extends Error {
-  constructor(code, message, { cause } = {}) {
-    super(message, { cause });
-    this.name = "SetupError";
-    this.code = code;
-  }
-};
-async function runNativeSecretDialog({ spawnImpl = runProcess } = {}) {
-  let result;
-  try {
-    result = await spawnImpl("/usr/bin/osascript", ["-l", "JavaScript", "-e", JXA_SCRIPT], {});
-  } catch (cause) {
-    throw new SetupError("setup_failed", "Unable to open the Jev credential dialog", { cause });
-  }
-  if (result.code !== 0) {
-    if (/cancel|\(-128\)/i.test(result.stderr)) return { status: "cancelled" };
-    throw new SetupError("setup_failed", "The Jev credential dialog failed");
-  }
-  const secret = result.stdout.replace(/\r?\n$/, "");
-  if (!secret || secret === "__JEV_CANCELLED__") return { status: "cancelled" };
-  return { status: "submitted", secret };
-}
-async function promptForApiKey({ credentials, runDialog = runNativeSecretDialog } = {}) {
-  if (!credentials || typeof credentials.write !== "function") {
-    throw new SetupError("setup_failed", "Credential storage is unavailable");
-  }
-  const result = await runDialog();
-  if (result.status !== "submitted") return { status: "cancelled" };
-  await credentials.write(result.secret);
-  return { status: "saved" };
-}
-
 // server/tool-handlers.mjs
 var HandlerError = class extends Error {
   constructor(code, message) {
@@ -37117,7 +37089,6 @@ function validateCandidates(candidates) {
 function createToolHandlers({
   platform = process.platform,
   credentials = createCredentialStore(),
-  promptForApiKey: promptForApiKey2 = promptForApiKey,
   requestDecision: requestDecision2 = requestDecision
 } = {}) {
   return {
@@ -37138,14 +37109,25 @@ function createToolHandlers({
         code: configured ? "ready" : "not_configured"
       };
     },
-    async configure() {
+    async configure(input2 = {}) {
       requireMac(platform);
-      const result = await promptForApiKey2({ credentials });
-      const saved = result.status === "saved";
+      if (input2.source_file === void 0) {
+        return {
+          status: "source_file_required",
+          configured: false,
+          ready: false,
+          credential_path: credentials.path
+        };
+      }
+      const sourcePath = requireString(input2.source_file, "source_file", 4096);
+      if (!path2.isAbsolute(sourcePath)) {
+        throw new HandlerError("invalid_input", "source_file must be an absolute path");
+      }
+      await credentials.importFromEnv(sourcePath);
       return {
-        status: saved ? "saved" : "cancelled",
-        configured: saved,
-        ready: saved
+        status: "saved",
+        configured: true,
+        ready: true
       };
     },
     async candidates(input2 = {}) {
@@ -37225,6 +37207,9 @@ function createToolHandlers({
 
 // server/index.mjs
 var emptySchema = external_exports.object({}).strict();
+var configureSchema = external_exports.object({
+  source_file: external_exports.string().min(1).max(4096).optional()
+}).strict();
 var candidatesSchema = external_exports.object({
   accessibility_text: external_exports.string().min(1).max(5e4),
   goal: external_exports.string().min(1).max(500),
@@ -37249,6 +37234,8 @@ var SAFE_MESSAGES = Object.freeze({
   unsupported_platform: "Jev-cu currently supports macOS only",
   not_configured: "The Jev credential is not configured",
   credential_unavailable: "The Jev credential is unavailable",
+  credential_source_unavailable: "The source credential file is unavailable",
+  invalid_credential_file: "The source credential file is invalid",
   authentication_failed: "Jev authentication failed",
   rate_limited: "Jev rate limit exceeded",
   service_unavailable: "Jev service is unavailable",
@@ -37287,13 +37274,13 @@ function createMcpServer({ handlers, ...handlerOptions } = {}) {
   const activeHandlers = handlers ?? createToolHandlers(handlerOptions);
   const server = new McpServer({ name: "jev-cu", version: "0.2.0" });
   server.registerTool("jev_status", {
-    description: "Check whether Jev-cu supports this Mac and has a configured Keychain credential.",
+    description: "Check whether Jev-cu supports this Mac and has a protected local credential file.",
     inputSchema: emptySchema
   }, safeTool(() => activeHandlers.status()));
   server.registerTool("jev_configure", {
-    description: "Open a native hidden macOS dialog and save a Jev API key directly to Keychain.",
-    inputSchema: emptySchema
-  }, safeTool(() => activeHandlers.configure()));
+    description: "Import a Jev API key from an existing env file into protected local storage without returning the secret.",
+    inputSchema: configureSchema
+  }, safeTool((input2) => activeHandlers.configure(input2)));
   server.registerTool("jev_candidates", {
     description: "Normalize bounded English or Chinese macOS accessibility text into stable UI candidates.",
     inputSchema: candidatesSchema

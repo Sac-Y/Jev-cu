@@ -9,7 +9,7 @@ import { createMcpServer } from "../server/index.mjs";
 async function createHarness(t) {
   const handlers = {
     status: async () => ({ platform: "darwin", configured: false, ready: false, code: "not_configured" }),
-    configure: async () => ({ status: "cancelled", configured: false, ready: false }),
+    configure: async () => ({ status: "source_file_required", configured: false, ready: false }),
     candidates: async () => ({ candidates: [], context: "", diagnostics: { clipped: false, totalElements: 0, totalClickable: 0, unknownRoles: [] } }),
     decide: async () => ({ ready: false, code: "not_configured" }),
   };
@@ -37,7 +37,8 @@ test("registers four bounded, documented Jev tools", async (t) => {
   assert.ok(tools.every((tool) => typeof tool.description === "string" && tool.description.length > 20));
 
   const configure = tools.find((tool) => tool.name === "jev_configure");
-  assert.deepEqual(configure.inputSchema.properties, {});
+  assert.equal(configure.inputSchema.properties.source_file.maxLength, 4096);
+  assert.deepEqual(configure.inputSchema.required ?? [], []);
 
   const candidates = tools.find((tool) => tool.name === "jev_candidates");
   assert.deepEqual(candidates.inputSchema.required.sort(), ["accessibility_text", "goal"]);
@@ -72,6 +73,12 @@ test("schema rejects secrets and oversized candidate arrays before handlers", as
     arguments: { api_key: "must-not-be-accepted" },
   });
   assert.equal(configure.isError, true);
+
+  const source = await client.callTool({
+    name: "jev_configure",
+    arguments: { source_file: "/tmp/credentials.env" },
+  });
+  assert.equal(source.isError, undefined);
 
   const tooMany = Array.from({ length: 81 }, (_, index) => ({
     id: `i${index}`,

@@ -10,7 +10,15 @@ Jev MCP 与 Computer Use 是两套独立工具。Computer Use 调用负责观察
 {}
 ```
 
-若返回 `not_configured`，先说明将出现原生隐藏输入框。用户明确同意后调用 `jev_configure`，输入仍为空。密钥不应出现在 MCP 参数、结果或聊天中。
+若返回 `not_configured`，请用户给出已有 env 文件的绝对路径，然后调用 `jev_configure`：
+
+```json
+{
+  "source_file": "/absolute/path/to/.env.local"
+}
+```
+
+源文件必须包含 `TYPESAFE_API_KEY=...` 或 `JEV_API_KEY=...`。工具只返回导入状态，密钥不应出现在 MCP 参数、结果或聊天中。若不传 `source_file`，工具会返回默认凭据文件位置和 `source_file_required`。
 
 ## 2. 读取当前界面
 

@@ -58,15 +58,47 @@ test("non-macOS is rejected before touching credentials", async () => {
   assert.equal(reads, 0);
 });
 
-test("configure returns cancellation without any secret field", async () => {
+test("configure imports an env file path without accepting or returning the secret", async () => {
+  const imports = [];
   const handlers = createToolHandlers({
     platform: "darwin",
-    credentials: {},
-    promptForApiKey: async () => ({ status: "cancelled" }),
+    credentials: {
+      importFromEnv: async (sourcePath) => {
+        imports.push(sourcePath);
+        return { configured: true };
+      },
+    },
   });
-  const result = await handlers.configure();
-  assert.deepEqual(result, { status: "cancelled", configured: false, ready: false });
+  const result = await handlers.configure({ source_file: "/tmp/existing.env" });
+  assert.deepEqual(imports, ["/tmp/existing.env"]);
+  assert.deepEqual(result, { status: "saved", configured: true, ready: true });
   assert.equal(JSON.stringify(result).includes("secret"), false);
+});
+
+test("configure without a source path gives a non-secret setup instruction", async () => {
+  const handlers = createToolHandlers({
+    platform: "darwin",
+    credentials: { path: "/Users/test/Library/Application Support/Jev-cu/credentials.env" },
+  });
+  assert.deepEqual(await handlers.configure({}), {
+    status: "source_file_required",
+    configured: false,
+    ready: false,
+    credential_path: "/Users/test/Library/Application Support/Jev-cu/credentials.env",
+  });
+});
+
+test("configure rejects relative source paths before reading a file", async () => {
+  let imports = 0;
+  const handlers = createToolHandlers({
+    platform: "darwin",
+    credentials: { importFromEnv: async () => { imports += 1; } },
+  });
+  await assert.rejects(
+    handlers.configure({ source_file: ".env.local" }),
+    (error) => error instanceof HandlerError && error.code === "invalid_input",
+  );
+  assert.equal(imports, 0);
 });
 
 test("candidate handler normalizes Chinese accessibility roles", async () => {
