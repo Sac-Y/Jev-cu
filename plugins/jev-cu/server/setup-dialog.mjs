@@ -3,6 +3,8 @@ import { runProcess } from "./credentials.mjs";
 const JXA_SCRIPT = [
   'ObjC.import("AppKit");',
   "const app = $.NSApplication.sharedApplication;",
+  "app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);",
+  "app.finishLaunching;",
   "app.activateIgnoringOtherApps(true);",
   "const alert = $.NSAlert.alloc.init;",
   'alert.messageText = "Jev-cu Setup";',

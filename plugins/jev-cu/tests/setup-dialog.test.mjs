@@ -37,6 +37,8 @@ test("the native dialog uses an AppKit secure text field without embedding the s
   assert.deepEqual(calls[0].args.slice(0, 3), ["-l", "JavaScript", "-e"]);
   assert.match(calls[0].args[3], /NSSecureTextField/);
   assert.match(calls[0].args[3], /NSAlert/);
+  assert.match(calls[0].args[3], /setActivationPolicy/);
+  assert.match(calls[0].args[3], /finishLaunching/);
   assert.match(calls[0].args[3], /runModal/);
   assert.equal(calls[0].args.join(" ").includes("secret-key"), false);
 });
