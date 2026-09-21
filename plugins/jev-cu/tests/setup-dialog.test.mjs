@@ -24,7 +24,7 @@ test("cancelling setup leaves the credential untouched", async () => {
   assert.equal(writes, 0);
 });
 
-test("the native dialog command is fixed and never contains the submitted secret", async () => {
+test("the native dialog uses an AppKit secure text field without embedding the submitted secret", async () => {
   const calls = [];
   const result = await runNativeSecretDialog({
     spawnImpl: async (command, args, options) => {
@@ -34,7 +34,10 @@ test("the native dialog command is fixed and never contains the submitted secret
   });
   assert.deepEqual(result, { status: "submitted", secret: "secret-key" });
   assert.equal(calls[0].command, "/usr/bin/osascript");
-  assert.match(calls[0].args.join(" "), /with hidden answer/);
+  assert.deepEqual(calls[0].args.slice(0, 3), ["-l", "JavaScript", "-e"]);
+  assert.match(calls[0].args[3], /NSSecureTextField/);
+  assert.match(calls[0].args[3], /NSAlert/);
+  assert.match(calls[0].args[3], /runModal/);
   assert.equal(calls[0].args.join(" ").includes("secret-key"), false);
 });
 

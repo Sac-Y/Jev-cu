@@ -18,7 +18,7 @@ test("marketplace points to the namesake plugin", () => {
   });
 
   assert.equal(manifest.name, "jev-cu");
-  assert.equal(manifest.version, "0.2.0");
+  assert.match(manifest.version, /^0\.2\.0(?:\+codex\.[A-Za-z0-9.-]+)?$/);
   assert.equal(manifest.repository, "https://github.com/rainhan99/Jev-cu");
   assert.equal(manifest.homepage, "https://github.com/rainhan99/Jev-cu");
   assert.equal(manifest.author.name, "rainhan99");

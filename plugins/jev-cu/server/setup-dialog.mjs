@@ -1,15 +1,19 @@
 import { runProcess } from "./credentials.mjs";
 
-const APPLESCRIPT = [
-  "set answer to display dialog \"Enter your Jev API key. It will be stored in macOS Keychain.\"",
-  "default answer \"\"",
-  "with title \"Jev-cu Setup\"",
-  "buttons {\"Cancel\", \"Save\"}",
-  "default button \"Save\"",
-  "cancel button \"Cancel\"",
-  "with hidden answer",
-  "return text returned of answer",
-].join(" ");
+const JXA_SCRIPT = [
+  'ObjC.import("AppKit");',
+  "const app = $.NSApplication.sharedApplication;",
+  "app.activateIgnoringOtherApps(true);",
+  "const alert = $.NSAlert.alloc.init;",
+  'alert.messageText = "Jev-cu Setup";',
+  'alert.informativeText = "Enter your Jev API key. It will be stored in macOS Keychain.";',
+  "const field = $.NSSecureTextField.alloc.initWithFrame($.NSMakeRect(0, 0, 360, 24));",
+  "alert.accessoryView = field;",
+  'alert.addButtonWithTitle("Save");',
+  'alert.addButtonWithTitle("Cancel");',
+  "const response = alert.runModal;",
+  'Number(response) === Number($.NSAlertFirstButtonReturn) ? ObjC.unwrap(field.stringValue) : "__JEV_CANCELLED__";',
+].join("\n");
 
 export class SetupError extends Error {
   constructor(code, message, { cause } = {}) {
@@ -22,7 +26,7 @@ export class SetupError extends Error {
 export async function runNativeSecretDialog({ spawnImpl = runProcess } = {}) {
   let result;
   try {
-    result = await spawnImpl("/usr/bin/osascript", ["-e", APPLESCRIPT], {});
+    result = await spawnImpl("/usr/bin/osascript", ["-l", "JavaScript", "-e", JXA_SCRIPT], {});
   } catch (cause) {
     throw new SetupError("setup_failed", "Unable to open the Jev credential dialog", { cause });
   }
@@ -31,7 +35,7 @@ export async function runNativeSecretDialog({ spawnImpl = runProcess } = {}) {
     throw new SetupError("setup_failed", "The Jev credential dialog failed");
   }
   const secret = result.stdout.replace(/\r?\n$/, "");
-  if (!secret) return { status: "cancelled" };
+  if (!secret || secret === "__JEV_CANCELLED__") return { status: "cancelled" };
   return { status: "submitted", secret };
 }
 
