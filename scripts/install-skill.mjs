@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 把项目里的 skill/jev-use 安装到 Codex 技能目录。
+ * 把项目里的 skill/jev-cu 安装到 Codex 技能目录。
  *
  *   node scripts/install-skill.mjs            # 复制安装（默认，稳定）
  *   node scripts/install-skill.mjs --link     # 软链安装（源文件始终以项目为准）
@@ -12,8 +12,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PROJECT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = path.join(PROJECT_DIR, "skill", "jev-use");
-const DEST = path.join(os.homedir(), ".codex", "skills", "jev-use");
+const SRC = path.join(PROJECT_DIR, "skill", "jev-cu");
+const DEST = path.join(os.homedir(), ".codex", "skills", "jev-cu");
 const REPO_DIR_PLACEHOLDER = "{{REPO_DIR}}";
 const uninstall = process.argv.includes("--uninstall");
 const link = process.argv.includes("--link");

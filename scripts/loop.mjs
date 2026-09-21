@@ -50,6 +50,16 @@ const ROLES = [
   "Event",
 ];
 
+// Localized role descriptions observed in CUA's Chinese Calculator output.
+// Normalize roles only; labels, IDs and original lines remain unchanged.
+const ROLE_ALIASES = new Map([
+  ["标准窗口", "standard window"],
+  ["分离组", "split group"],
+  ["滚动区", "scroll area"],
+  ["文本", "text"],
+  ["按钮", "button"],
+]);
+
 const CLICKABLE_ROLES = new Set([
   "button",
   "radio button",
@@ -73,16 +83,17 @@ const CLICKABLE_ROLES = new Set([
 /** 把 AX 文本解析成元素列表：{index, role, label, depth, raw} */
 export function parseAX(axText) {
   const out = [];
-  for (const line of String(axText ?? "").split("\n")) {
+  for (const line of String(axText ?? "").split(/\r?\n/)) {
     const m = line.match(/^(\s*)(\d+)\s+(.*)$/);
     if (!m) continue;
     const depth = m[1].replace(/\t/g, "    ").length;
     const rest = m[3].trim();
-    const role = ROLES.find((r) => rest === r || rest.startsWith(r + " ")) ?? rest.split(" ")[0];
+    const sourceRole = ROLES.find((r) => rest === r || rest.startsWith(r + " ")) ?? rest.split(" ")[0];
+    const role = ROLE_ALIASES.get(sourceRole) ?? sourceRole;
     // 清掉 AX 元数据尾巴（如 "Secondary Actions: Move next, Remove from toolbar"），
     // 它描述的是元素的次级动作列表，不是元素名称；保留会污染标签并误触敏感词门。
     const label = rest
-      .slice(role.length)
+      .slice(sourceRole.length)
       .trim()
       .replace(/,?\s*Secondary Actions:.*$/i, "")
       .trim();
@@ -132,11 +143,12 @@ export function selectCandidates(elements, goal = "", { max = 40 } = {}) {
  */
 export function buildContext(axText, { maxTextLines = 6 } = {}) {
   const lines = String(axText ?? "")
-    .split("\n")
+    .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
   const head = lines.slice(0, 2);
-  const texts = lines.filter((l) => /^\d+\s+text\b/.test(l)).slice(0, maxTextLines);
+  const texts = parseAX(axText).filter((element) => element.role === "text")
+    .slice(0, maxTextLines).map((element) => element.raw.trim());
   const focus = lines.find((l) => /focused UI element/i.test(l));
   return [...head, ...texts, focus].filter(Boolean).join("\n").slice(0, 1_500);
 }
@@ -293,10 +305,14 @@ export async function runTask({
       }
     }
 
-    const invalidTarget = decision.targetIndex != null && !candidates.some(c => c.index === decision.targetIndex);
+    const selected = candidates.find(c => c.index === decision.targetIndex);
+    const invalidTarget = decision.targetIndex != null && !selected;
     if (invalidTarget) {
       return finish("escalate", { steps: routeOptions ? executedActions : step - 1, tracePath, message: "目标不在当前候选集中", elapsedMs: Date.now() - startedAt });
     }
+    // The model-facing description is lossy. Policy must use the selected
+    // observation's full label, including when a custom adapter supplies a label.
+    if (selected) decision = { ...decision, targetLabel: selected.label };
     const gate = evaluatePolicy({ decision, app: appName, allowedApps, step, maxSteps, thresholds, dryRun });
     const target = decision.targetIndex != null ? `i${decision.targetIndex} (${decision.targetLabel ?? "?"})` : "—";
     const line =

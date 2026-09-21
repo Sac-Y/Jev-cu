@@ -5,7 +5,7 @@
 ## 目录
 
 ```
-skill/jev-use/   可安装到 Codex 的 skill（运行手册 + 安全规则）
+skill/jev-cu/   可安装到 Codex 的 skill（运行手册 + 安全规则）
 scripts/         Jev 调用、策略门槛、决策循环、离线评测、安装脚本
 fixtures/        AX 快照与 P0 用例
 tests/           单测
@@ -14,7 +14,7 @@ tests/           单测
 ## 安装 skill
 
 ```bash
-npm run install-skill      # 复制到 ~/.codex/skills/jev-use，新会话生效
+npm run install-skill      # 复制到 ~/.codex/skills/jev-cu，新会话生效
 npm run uninstall-skill
 ```
 

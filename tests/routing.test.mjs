@@ -14,7 +14,7 @@ const ROUTED = { ...ACTION, route: "execute", routeConfidence: 1 };
 async function run(options = {}, inspect = () => {}) {
   const traceDir = fs.mkdtempSync(path.join(os.tmpdir(), "jev-routing-"));
   const stats = { actions: 0, observations: 0, calls: 0 };
-  let ax = AX;
+  let ax = options.ax ?? AX;
   try {
     const driver = {
       bind: async () => {},
@@ -167,6 +167,25 @@ test("route execute never overrides the existing action policy", async () => {
   const { result, stats } = await run({ decide: async () => ({ ...ROUTED, risk: 0.9 }) });
   assert.equal(result.status, "confirm");
   assert.equal(stats.actions, 0);
+});
+
+test("routed execution checks the full observed label even when the chooser reports a safe label", async () => {
+  const label = "Ordinary event details ".repeat(8) + "Delete Event";
+  let handoffs = 0;
+  const { result, stats } = await run({
+    ax: AX.replace("1 button Next", `1 button ${label}`),
+    decide: async ({ candidates }) => {
+      const { criteria } = buildQuestions("Inspect event", candidates);
+      assert.ok(!criteria.i1.includes("Delete Event"));
+      return ROUTED; // A valid execute route and a falsely harmless "Next" label.
+    },
+    onHandoff: async () => { handoffs++; },
+  });
+  assert.equal(result.status, "confirm");
+  assert.equal(result.decision.targetLabel, label);
+  assert.equal(stats.calls, 1);
+  assert.equal(stats.actions, 0);
+  assert.equal(handoffs, 0);
 });
 
 test("planner failures and deadlines return handoff without replay", async () => {

@@ -42,6 +42,21 @@ test("parseAX 解析索引/角色/标签", () => {
   assert.equal(field.role, "button");
 });
 
+test("parseAX 兼容 CRLF 换行（Windows 检出回归）", () => {
+  // A Windows checkout (core.autocrlf) turns the LF fixtures into CRLF. Splitting
+  // on "\n" alone leaves a trailing "\r" on every line, and because "." does not
+  // match "\r" the `(.*)$` group never closes: parseAX then returns 0 elements and
+  // every Choice question is sent with an empty criteria map (HTTP 400).
+  const crlf = CALENDAR_AX.replace(/\n/g, "\r\n");
+  const els = parseAX(crlf);
+  assert.equal(els.length, parseAX(CALENDAR_AX).length, "CRLF 与 LF 必须解析出同样多的元素");
+  assert.ok(els.length > 0, "CRLF 文本也必须解析出元素");
+  const prev = els.find((e) => e.index === 56);
+  assert.equal(prev?.role, "button");
+  assert.equal(prev?.label, "previous month");
+  assert.ok(buildContext(crlf).includes("September"), "buildContext 也必须能在 CRLF 文本里读到状态行");
+});
+
 test("selectCandidates 不会把目标按钮挤出候选集（P0 实测回归）", () => {
   const els = parseAX(CALENDAR_AX);
   const candidates = selectCandidates(els, "switch the calendar to the previous month", { max: 40 });
@@ -205,4 +220,75 @@ test("未知目标和缺失概率不放行", () => {
   const decision = normalizeDecision({ target: { choice: "i999" }, action: { choice: "click_element" } }, { i1: "button A" });
   assert.equal(decision.targetIndex, null);
   assert.equal(evaluatePolicy({ decision, app: "Calendar" }).verdict, "escalate");
+});
+
+const CHINESE_CALCULATOR_AX = [
+  'Window: "计算器", App: 计算器.',
+  '0 标准窗口 计算器, ID: main',
+  '\t1 分离组 main',
+  '\t\t3 滚动区 Description: 编辑字段',
+  '\t\t\t4 文本 0',
+  '\t\t\t15 按钮 Description: 6, ID: Six',
+  '\t\t\t24 按钮 Description: 等于, ID: Equals',
+].join('\n');
+
+test('中文 AX 与英文角色有相同候选和显示值，保留原始索引与标签', () => {
+  const en = CHINESE_CALCULATOR_AX.replace('标准窗口', 'standard window')
+    .replace('分离组', 'split group').replace('滚动区', 'scroll area')
+    .replace('文本', 'text').replaceAll('按钮', 'button');
+  for (const separator of ['\n', '\r\n']) {
+    const zh = CHINESE_CALCULATOR_AX.replaceAll('\n', separator);
+    const elements = parseAX(zh);
+    assert.deepEqual(elements.map(({raw, ...element}) => element),
+      parseAX(en).map(({raw, ...element}) => element));
+    assert.deepEqual(selectCandidates(elements).map(e => e.index), [15, 24]);
+    assert.ok(buildContext(zh).includes('4 文本 0'));
+    assert.ok(buildContext(en).includes('4 text 0'));
+    assert.equal(elements.find(e => e.index === 15).raw.trim(), '15 按钮 Description: 6, ID: Six');
+  }
+  assert.equal(selectCandidates(parseAX('1 未知控件 Button')).length, 0);
+});
+
+test('中文计算器可以进入决策并通过模拟执行核验', async () => {
+  let ax = CHINESE_CALCULATOR_AX;
+  let calls = 0;
+  const clicked = [];
+  const result = await mockRun({
+    appName: 'Calculator', goal: 'Enter digit 6', dryRun: false, maxSteps: 1,
+    driver: {bind: async () => {}, observe: async () => ax,
+      click: async index => {clicked.push(index); ax = ax.replace('4 文本 0', '4 文本 6');}},
+    decide: async ({candidates, context}) => {
+      calls++;
+      assert.ok(context.includes('4 文本 0'));
+      assert.ok(candidates.some(e => e.index === 15 && e.role === 'button'));
+      return {action: 'click_element', targetIndex: 15, targetLabel: '6', confidence: 1, risk: 0, done: 0};
+    },
+    verify: text => text.includes('4 文本 6'),
+  });
+  assert.equal(result.status, 'done');
+  assert.equal(result.verified, true);
+  assert.equal(calls, 1);
+  assert.deepEqual(clicked, [15]);
+});
+
+test('长标签敏感词和适配器误报标签都不能绕过执行门槛', async () => {
+  for (const spoof of [false, true]) {
+    const label = 'Description: ' + 'Ordinary event details '.repeat(8) + 'Delete Event';
+    const ax = `0 standard window Calendar\n203 button ${label}\n204 button Next`;
+    let clicks = 0;
+    const result = await mockRun({dryRun: false, maxSteps: 1,
+      driver: {bind: async () => {}, observe: async () => ax, click: async () => {clicks++;}},
+      decide: async ({candidates}) => {
+        const {criteria} = buildQuestions('Inspect event', candidates);
+        assert.equal(criteria.i203.length, 120);
+        assert.ok(!criteria.i203.includes('Delete Event'));
+        const decision = normalizeDecision({target: {choice: 'i203', confidence: 0.9},
+          action: {choice: 'click_element'}, risk: {noul: 0.05}, done: {noul: 0.02}}, criteria);
+        return spoof ? {...decision, targetLabel: 'Next'} : decision;
+      },
+    });
+    assert.equal(result.status, 'confirm');
+    assert.equal(clicks, 0);
+    assert.ok(result.gate.reasons.some(reason => reason.includes('delete')));
+  }
 });
