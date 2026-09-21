@@ -41,30 +41,38 @@ The first release has three boundaries:
    API access, and credential status. It never clicks, types, or controls an app.
 3. Codex Computer Use owns accessibility observation and all macOS UI actions.
 
-Proposed repository structure:
+The Git repository is a one-plugin marketplace so Codex can install it directly
+from `rainhan99/Jev-cu`. The plugin itself lives under `plugins/jev-cu/`, which
+matches Codex marketplace path conventions:
 
 ```text
 Jev-cu/
-├── .codex-plugin/plugin.json
-├── .mcp.json
-├── skills/jev-use/
-│   └── SKILL.md
-├── server/
-│   ├── index.mjs
-│   ├── candidates.mjs
-│   ├── credentials.mjs
-│   ├── jev-client.mjs
-│   └── policy.mjs
-├── scripts/
-│   ├── configure-key.mjs
-│   ├── clear-key.mjs
-│   └── install-codex.mjs
-├── fixtures/
-└── tests/
+├── .agents/plugins/marketplace.json
+├── plugins/jev-cu/
+│   ├── .codex-plugin/plugin.json
+│   ├── .mcp.json
+│   ├── bin/jev-cu-mcp
+│   ├── dist/server.mjs
+│   ├── skills/jev-use/
+│   │   └── SKILL.md
+│   ├── server/
+│   │   ├── index.mjs
+│   │   ├── candidates.mjs
+│   │   ├── credentials.mjs
+│   │   ├── jev-client.mjs
+│   │   └── policy.mjs
+│   ├── scripts/
+│   │   ├── configure-key.mjs
+│   │   └── clear-key.mjs
+│   ├── fixtures/
+│   └── tests/
+└── README.md
 ```
 
-The server uses the official Model Context Protocol SDK over STDIO. All logs go
-to stderr so stdout remains a valid MCP transport.
+The server uses the official Model Context Protocol SDK over STDIO. Its runtime
+and dependencies are bundled into `dist/server.mjs`; installing the plugin does
+not run a package manager. All logs go to stderr so stdout remains a valid MCP
+transport.
 
 ## MCP tools
 
@@ -72,6 +80,12 @@ to stderr so stdout remains a valid MCP transport.
 
 Reports whether the runtime is supported, whether a Keychain credential exists,
 and whether the server is ready. It never returns the key.
+
+### `jev_configure`
+
+After explicit user approval, opens a native macOS password dialog, stores the
+submitted value in Keychain, and returns only whether configuration succeeded or
+was cancelled. The key never appears in the tool input, output, or chat.
 
 ### `jev_candidates`
 
@@ -106,10 +120,14 @@ No network request is performed inside `cua_repl`.
 
 ## Credentials and installation
 
-The Codex installer registers the plugin and runs an interactive configuration
-step. The key prompt is read from the terminal without echo. The value is stored
-in macOS Keychain under a Jev-cu-specific service/account pair by invoking
-`/usr/bin/security` without shell interpolation.
+Codex installs the plugin by first adding the Git repository as a marketplace
+and then installing `jev-cu` from it. Marketplace installation itself has no
+secure secret prompt, so first-use setup calls `jev_configure` only after the
+user agrees. It displays a native macOS password dialog with hidden input. A
+terminal configuration script provides the same operation for recovery. The
+value is stored in macOS Keychain under a Jev-cu-specific service/account pair
+by invoking `/usr/bin/security` without shell interpolation or placing the key
+in process arguments.
 
 The MCP server reads the key only when needed. The key is never placed in plugin
 configuration, command-line arguments, stdout, MCP results, logs, or chat.
