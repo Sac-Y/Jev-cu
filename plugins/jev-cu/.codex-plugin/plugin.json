@@ -1,0 +1,34 @@
+{
+  "name": "jev-cu",
+  "version": "0.2.0",
+  "description": "Use Jev to choose safe next steps for Codex Computer Use on macOS.",
+  "author": {
+    "name": "rainhan99",
+    "url": "https://github.com/rainhan99"
+  },
+  "homepage": "https://github.com/rainhan99/Jev-cu",
+  "repository": "https://github.com/rainhan99/Jev-cu",
+  "license": "ISC",
+  "keywords": [
+    "jev",
+    "computer-use",
+    "macos",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Jev-cu",
+    "shortDescription": "Jev decisions for Computer Use",
+    "longDescription": "Jev-cu lets Codex send bounded accessibility candidates to Jev, apply a local safety policy, and execute verified macOS Computer Use steps.",
+    "developerName": "rainhan99",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://github.com/rainhan99/Jev-cu",
+    "defaultPrompt": [
+      "Use Jev to choose the next safe UI action"
+    ],
+    "brandColor": "#2563EB"
+  }
+}

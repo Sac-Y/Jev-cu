@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "p0": "node scripts/p0-eval.mjs",
-    "test": "node --test tests/core.test.mjs",
+    "test": "npm --prefix plugins/jev-cu test && node --test tests/core.test.mjs",
+    "build": "npm --prefix plugins/jev-cu run build",
+    "validate": "npm --prefix plugins/jev-cu run validate",
     "install-skill": "node scripts/install-skill.mjs",
     "uninstall-skill": "node scripts/install-skill.mjs --uninstall"
   },

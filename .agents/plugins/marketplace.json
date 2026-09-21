@@ -1,0 +1,20 @@
+{
+  "name": "jev-cu-community",
+  "interface": {
+    "displayName": "Jev Cu Community"
+  },
+  "plugins": [
+    {
+      "name": "jev-cu",
+      "source": {
+        "source": "local",
+        "path": "./plugins/jev-cu"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
