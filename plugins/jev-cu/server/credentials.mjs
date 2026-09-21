@@ -4,6 +4,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 const MAX_SECRET_LENGTH = 4_096;
+const MAX_CREDENTIAL_FILE_BYTES = 65_536;
 const SUPPORTED_ENV_NAMES = new Set(["TYPESAFE_API_KEY", "JEV_API_KEY"]);
 
 export const DEFAULT_CREDENTIAL_PATH = path.join(
@@ -43,7 +44,7 @@ function decodeEnvValue(raw) {
 }
 
 export function parseEnvCredential(contents) {
-  if (typeof contents !== "string" || contents.length > 65_536) {
+  if (typeof contents !== "string" || Buffer.byteLength(contents, "utf8") > MAX_CREDENTIAL_FILE_BYTES) {
     throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
   }
 
@@ -128,10 +129,16 @@ export function createCredentialStore({ filePath = DEFAULT_CREDENTIAL_PATH, fsIm
     write,
 
     async importFromEnv(sourcePath) {
+      let sourceStat;
       let contents;
       try {
+        sourceStat = await fsImpl.stat(sourcePath);
+        if (!sourceStat.isFile() || sourceStat.size > MAX_CREDENTIAL_FILE_BYTES) {
+          throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
+        }
         contents = await fsImpl.readFile(sourcePath, "utf8");
       } catch (cause) {
+        if (cause instanceof CredentialError) throw cause;
         throw sourceUnavailable(cause);
       }
       const secret = parseEnvCredential(contents);

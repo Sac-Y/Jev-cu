@@ -122,16 +122,22 @@ for (const [status, code] of [[429, "rate_limited"], [503, "service_unavailable"
   });
 }
 
-test("network failures use a stable error without leaking the key", async () => {
+test("network failures retry twice and use a stable error without leaking the key", async () => {
+  let attempts = 0;
+  const delays = [];
   await assert.rejects(
     requestDecision(validInput, {
       apiKey: "secret-key",
       fetchImpl: async () => {
+        attempts += 1;
         throw new Error("socket failed near secret-key");
       },
+      sleepImpl: async (delay) => delays.push(delay),
     }),
     (error) => error.code === "network_failed" && !error.message.includes("secret-key"),
   );
+  assert.equal(attempts, 3);
+  assert.deepEqual(delays, [1_000, 3_000]);
 });
 
 test("missing answers and unknown target choices are invalid responses", async () => {

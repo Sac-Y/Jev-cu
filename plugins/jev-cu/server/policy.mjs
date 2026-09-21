@@ -1,8 +1,14 @@
 export const DEFAULT_ALLOWED_APPS = Object.freeze([
   "Calendar",
+  "日历",
   "Calculator",
+  "计算器",
   "TextEdit",
+  "文本编辑",
   "NetEaseMusic",
+  "网易云音乐",
+  "Activity Monitor",
+  "活动监视器",
   "Figma",
   "Google Chrome",
   "Codex In-app Browser",
@@ -16,7 +22,15 @@ export const DEFAULT_THRESHOLDS = Object.freeze({
   stopConfidence: 0.3,
 });
 
-const LOW_RISK_APPS = new Set(["Calculator", "Calendar", "TextEdit", "Figma"]);
+const LOW_RISK_APPS = new Set([
+  "Calculator",
+  "计算器",
+  "Calendar",
+  "日历",
+  "TextEdit",
+  "文本编辑",
+  "Figma",
+]);
 
 const SENSITIVE_PATTERNS = Object.freeze([
   { id: "delete", pattern: /删除|移除|清空|delete|remove/i },
@@ -27,6 +41,7 @@ const SENSITIVE_PATTERNS = Object.freeze([
   { id: "share", pattern: /上传|分享|导出|upload|share|export/i },
   { id: "install", pattern: /安装|install/i },
   { id: "settings", pattern: /系统设置|偏好设置|安全设置|system settings|security settings/i },
+  { id: "process_control", pattern: /停止进程|结束进程|退出进程|强制退出|stop process|quit process|force quit/i },
 ]);
 
 export function matchSensitive(label = "") {

@@ -24,6 +24,18 @@ test("safe Calendar navigation proceeds", () => {
   assert.equal(gate(safeDecision).verdict, "proceed");
 });
 
+test("localized safe apps are allowed while process controls still require confirmation", () => {
+  assert.equal(gate(safeDecision, { app: "日历" }).verdict, "proceed");
+  assert.equal(gate(
+    { ...safeDecision, targetLabel: "radio button: CPU" },
+    { app: "活动监视器" },
+  ).verdict, "proceed");
+  assert.equal(gate(
+    { ...safeDecision, targetLabel: "button: 停止进程" },
+    { app: "活动监视器" },
+  ).verdict, "confirm");
+});
+
 test("a valid high done probability stops as done", () => {
   assert.equal(gate({ ...safeDecision, done: 0.95 }).verdict, "done");
 });

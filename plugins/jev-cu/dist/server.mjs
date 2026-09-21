@@ -36499,10 +36499,13 @@ var ROLE_ALIASES = Object.freeze({
   "\u5355\u9009\u6309\u94AE": "radio button",
   "search field": "search field",
   "\u641C\u7D22\u680F": "search field",
+  "\u641C\u7D22\u6587\u672C\u680F": "search field",
   "text field": "text field",
   "\u6587\u672C\u680F": "text field",
   "pop up button": "pop up button",
   "\u5F39\u51FA\u5F0F\u6309\u94AE": "pop up button",
+  "menu button": "pop up button",
+  "\u83DC\u5355\u6309\u94AE": "pop up button",
   "toggle button": "toggle button",
   "\u5207\u6362\u6309\u94AE": "toggle button",
   "menu item": "menu item",
@@ -36659,6 +36662,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 var MAX_SECRET_LENGTH = 4096;
+var MAX_CREDENTIAL_FILE_BYTES = 65536;
 var SUPPORTED_ENV_NAMES = /* @__PURE__ */ new Set(["TYPESAFE_API_KEY", "JEV_API_KEY"]);
 var DEFAULT_CREDENTIAL_PATH = path.join(
   os.homedir(),
@@ -36690,7 +36694,7 @@ function decodeEnvValue(raw) {
   return value;
 }
 function parseEnvCredential(contents) {
-  if (typeof contents !== "string" || contents.length > 65536) {
+  if (typeof contents !== "string" || Buffer.byteLength(contents, "utf8") > MAX_CREDENTIAL_FILE_BYTES) {
     throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
   }
   for (const line of contents.split(/\r?\n/)) {
@@ -36765,10 +36769,16 @@ function createCredentialStore({ filePath = DEFAULT_CREDENTIAL_PATH, fsImpl = fs
     },
     write,
     async importFromEnv(sourcePath) {
+      let sourceStat;
       let contents;
       try {
+        sourceStat = await fsImpl.stat(sourcePath);
+        if (!sourceStat.isFile() || sourceStat.size > MAX_CREDENTIAL_FILE_BYTES) {
+          throw new CredentialError("invalid_credential_file", "The Jev credential file is invalid");
+        }
         contents = await fsImpl.readFile(sourcePath, "utf8");
       } catch (cause) {
+        if (cause instanceof CredentialError) throw cause;
         throw sourceUnavailable(cause);
       }
       const secret = parseEnvCredential(contents);
@@ -36927,6 +36937,7 @@ async function requestDecision(input2, {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = Date.now();
     let response;
+    let networkCause;
     try {
       response = await fetchImpl(endpoint, {
         method: "POST",
@@ -36938,9 +36949,19 @@ async function requestDecision(input2, {
         signal: controller.signal
       });
     } catch (cause) {
-      throw new JevError("network_failed", "Unable to reach the Jev service", { retryable: true, cause });
+      networkCause = cause;
     } finally {
       clearTimeout(timer);
+    }
+    if (networkCause) {
+      const error63 = new JevError(
+        "network_failed",
+        "Unable to reach the Jev service",
+        { retryable: true, cause: networkCause }
+      );
+      if (attempt >= maxRetries) throw error63;
+      await sleepImpl(backoff[Math.min(attempt, backoff.length - 1)]);
+      continue;
     }
     const latencyMs = Date.now() - startedAt;
     let body = null;
@@ -36970,9 +36991,15 @@ async function requestDecision(input2, {
 // server/policy.mjs
 var DEFAULT_ALLOWED_APPS = Object.freeze([
   "Calendar",
+  "\u65E5\u5386",
   "Calculator",
+  "\u8BA1\u7B97\u5668",
   "TextEdit",
+  "\u6587\u672C\u7F16\u8F91",
   "NetEaseMusic",
+  "\u7F51\u6613\u4E91\u97F3\u4E50",
+  "Activity Monitor",
+  "\u6D3B\u52A8\u76D1\u89C6\u5668",
   "Figma",
   "Google Chrome",
   "Codex In-app Browser"
@@ -36984,7 +37011,15 @@ var DEFAULT_THRESHOLDS = Object.freeze({
   lowRiskMinConfidence: 0.4,
   stopConfidence: 0.3
 });
-var LOW_RISK_APPS = /* @__PURE__ */ new Set(["Calculator", "Calendar", "TextEdit", "Figma"]);
+var LOW_RISK_APPS = /* @__PURE__ */ new Set([
+  "Calculator",
+  "\u8BA1\u7B97\u5668",
+  "Calendar",
+  "\u65E5\u5386",
+  "TextEdit",
+  "\u6587\u672C\u7F16\u8F91",
+  "Figma"
+]);
 var SENSITIVE_PATTERNS = Object.freeze([
   { id: "delete", pattern: /删除|移除|清空|delete|remove/i },
   { id: "send", pattern: /发送|提交|发布|回复|send|submit|post|reply/i },
@@ -36993,7 +37028,8 @@ var SENSITIVE_PATTERNS = Object.freeze([
   { id: "authorization", pattern: /授权|权限|登录|authorize|permission|sign in|login/i },
   { id: "share", pattern: /上传|分享|导出|upload|share|export/i },
   { id: "install", pattern: /安装|install/i },
-  { id: "settings", pattern: /系统设置|偏好设置|安全设置|system settings|security settings/i }
+  { id: "settings", pattern: /系统设置|偏好设置|安全设置|system settings|security settings/i },
+  { id: "process_control", pattern: /停止进程|结束进程|退出进程|强制退出|stop process|quit process|force quit/i }
 ]);
 function matchSensitive(label = "") {
   return SENSITIVE_PATTERNS.find(({ pattern }) => pattern.test(String(label))) ?? null;

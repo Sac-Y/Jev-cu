@@ -63,6 +63,32 @@ test("missing or malformed files report stable non-secret errors", async (t) => 
     store.importFromEnv(malformed),
     (error) => error.code === "invalid_credential_file",
   );
+
+  const oversized = path.join(root, "oversized.env");
+  await fs.writeFile(oversized, `TYPESAFE_API_KEY=${"x".repeat(65_536)}\n`, { mode: 0o600 });
+  await assert.rejects(
+    store.importFromEnv(oversized),
+    (error) => error.code === "invalid_credential_file",
+  );
+});
+
+test("rejects an oversized source before reading its contents", async () => {
+  let reads = 0;
+  const store = createCredentialStore({
+    filePath: "/tmp/unused-jev-credential",
+    fsImpl: {
+      stat: async () => ({ isFile: () => true, size: 65_537 }),
+      readFile: async () => {
+        reads += 1;
+        throw new Error("must not read oversized source");
+      },
+    },
+  });
+  await assert.rejects(
+    store.importFromEnv("/tmp/oversized.env"),
+    (error) => error.code === "invalid_credential_file",
+  );
+  assert.equal(reads, 0);
 });
 
 test("clear removes only the configured credential file", async (t) => {

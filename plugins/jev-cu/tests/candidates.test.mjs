@@ -21,6 +21,21 @@ test("Chinese overlapping roles use longest matching alias", () => {
   assert.equal(elements.find((item) => item.index === 5).role, "text field");
 });
 
+test("Chinese roles emitted by current macOS AX are canonicalized", () => {
+  const snapshot = [
+    "189 菜单按钮 Description: 操作",
+    "196 搜索文本栏 (settable)",
+    "197 按钮 搜索",
+  ].join("\n");
+  const elements = parseAccessibilitySnapshot(snapshot);
+  assert.equal(elements.find((item) => item.index === 189).role, "pop up button");
+  assert.equal(elements.find((item) => item.index === 196).role, "search field");
+  assert.deepEqual(
+    collectCandidates(snapshot, "搜索").diagnostics.unknownRoles,
+    [],
+  );
+});
+
 test("English parsing removes secondary-action metadata", () => {
   const elements = parseAccessibilitySnapshot(readFixture("calendar-en.txt"));
   assert.deepEqual(

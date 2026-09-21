@@ -154,6 +154,7 @@ export async function requestDecision(input, {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = Date.now();
     let response;
+    let networkCause;
     try {
       response = await fetchImpl(endpoint, {
         method: "POST",
@@ -165,9 +166,20 @@ export async function requestDecision(input, {
         signal: controller.signal,
       });
     } catch (cause) {
-      throw new JevError("network_failed", "Unable to reach the Jev service", { retryable: true, cause });
+      networkCause = cause;
     } finally {
       clearTimeout(timer);
+    }
+
+    if (networkCause) {
+      const error = new JevError(
+        "network_failed",
+        "Unable to reach the Jev service",
+        { retryable: true, cause: networkCause },
+      );
+      if (attempt >= maxRetries) throw error;
+      await sleepImpl(backoff[Math.min(attempt, backoff.length - 1)]);
+      continue;
     }
 
     const latencyMs = Date.now() - startedAt;
