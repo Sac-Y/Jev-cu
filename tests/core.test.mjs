@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseAX, selectCandidates, buildContext } from "../scripts/loop.mjs";
 import { evaluatePolicy, matchSensitive } from "../scripts/policy.mjs";
-import { buildQuestions, normalizeDecision, sanitizeLabel } from "../scripts/jev-decide.mjs";
+import { ask, buildQuestions, normalizeDecision, sanitizeLabel } from "../scripts/jev-decide.mjs";
 
 const CALENDAR_AX = [
   'Window: "Calendar", App: Calendar.',
@@ -134,6 +134,41 @@ test("matchSensitive 命中支付与发送", () => {
   assert.equal(matchSensitive("button 立即支付").id, "payment");
   assert.equal(matchSensitive("button Send message").id, "send");
   assert.equal(matchSensitive("button Search"), null);
+});
+
+test("ask timeout remains active while reading the response body", async () => {
+  let aborted = false;
+  let releaseBody;
+  const fetchImpl = async (_url, { signal }) => new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("{"));
+        releaseBody = () => controller.close();
+        signal.addEventListener("abort", () => {
+          aborted = true;
+          controller.error(new DOMException("aborted", "AbortError"));
+        }, { once: true });
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+  const pending = ask({ apiKey: "test-only", timeoutMs: 25, fetchImpl }).then(
+    () => ({ kind: "resolved" }),
+    (error) => ({ kind: "rejected", name: error.name }),
+  );
+  let watchdog;
+  const outcome = await Promise.race([
+    pending,
+    new Promise((resolve) => { watchdog = setTimeout(() => resolve({ kind: "pending" }), 250); }),
+  ]);
+  clearTimeout(watchdog);
+  if (outcome.kind === "pending") {
+    releaseBody();
+    await pending;
+  }
+  assert.equal(outcome.kind, "rejected", "body read should terminate on the configured request timeout");
+  assert.equal(aborted, true);
+  assert.equal(outcome.name, "AbortError");
 });
 
 test("buildQuestions/normalizeDecision 往返一致", () => {
