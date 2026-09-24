@@ -139,6 +139,7 @@ export async function ask({
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = Date.now();
     let res;
+    let body;
     try {
       res = await fetchImpl(endpoint, {
         method: "POST",
@@ -146,11 +147,14 @@ export async function ask({
         body: JSON.stringify({ state, model, questions }),
         signal: controller.signal,
       });
+      body = await res.json().catch((err) => {
+        if (controller.signal.aborted) throw err;
+        return null;
+      });
     } finally {
       clearTimeout(timer);
     }
     const latencyMs = Date.now() - startedAt;
-    const body = await res.json().catch(() => null);
 
     if (res.ok && body?.answers) {
       return {
