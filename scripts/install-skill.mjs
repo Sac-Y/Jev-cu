@@ -5,6 +5,7 @@
  *   node scripts/install-skill.mjs            # 复制安装（默认，稳定）
  *   node scripts/install-skill.mjs --link     # 软链安装（源文件始终以项目为准）
  *   node scripts/install-skill.mjs --uninstall
+ *   node scripts/install-skill.mjs --dest /Users/a1/.agents/skills/jev-cu
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -13,7 +14,13 @@ import { fileURLToPath } from "node:url";
 
 const PROJECT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(PROJECT_DIR, "skill", "jev-cu");
-const DEST = path.join(os.homedir(), ".codex", "skills", "jev-cu");
+const destIndex = process.argv.indexOf("--dest");
+if (destIndex >= 0 && (!process.argv[destIndex + 1] || process.argv[destIndex + 1].startsWith("--"))) {
+  throw new Error("--dest requires a full jev-cu directory path");
+}
+const DEST = destIndex >= 0 ? path.resolve(process.argv[destIndex + 1])
+  : path.join(os.homedir(), ".codex", "skills", "jev-cu");
+if (path.basename(DEST) !== "jev-cu") throw new Error("Destination directory must be named jev-cu");
 const REPO_DIR_PLACEHOLDER = "{{REPO_DIR}}";
 const uninstall = process.argv.includes("--uninstall");
 const link = process.argv.includes("--link");
@@ -52,4 +59,4 @@ if (link) {
   materializeRepoDir(DEST);
   console.log(`已复制安装：${SRC} → ${DEST}`);
 }
-console.log("新会话生效；卸载：node scripts/install-skill.mjs --uninstall");
+console.log(`新会话生效；卸载：node scripts/install-skill.mjs --dest ${JSON.stringify(DEST)} --uninstall`);

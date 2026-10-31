@@ -1,6 +1,6 @@
 ---
 name: jev-cu
-description: 用 Jev 根据界面文字选择下一步，由 Codex Computer Use 执行并核验。适用于明确要求 jev-cu、Jev 电脑操作或逐步决策对照实验；明确操作与少量一次性判断不强制调用Jev。
+description: 用 Jev 根据界面文字选择下一步，由 Orca 或 Codex Computer Use 执行并核验。适用于明确要求 jev-cu、Jev 电脑操作或逐步决策对照实验；明确操作与少量一次性判断不强制调用Jev。
 ---
 
 # Jev 电脑操作
@@ -18,8 +18,9 @@ Jev 负责从当前候选中选择目标与动作。Codex 负责拆分任务、�
 - 项目：本仓库根目录 `{{REPO_DIR}}`（含 `scripts/` 与 `skill/`；安装 skill 时自动替换为本地路径）。
 - 密钥：项目 `.env.local` 或环境变量 `TYPESAFE_API_KEY`；只检查是否存在，不输出值。
 - 实现：`scripts/loop.mjs`（循环）、`scripts/jev-decide.mjs`（决策）、`scripts/policy.mjs`（门槛）。
-- 技能源文件：项目 `skill/jev-cu/`。修改后运行 `node scripts/install-skill.mjs` 同步到已安装目录；不要维护两套正文。
-- 执行前读取当前 `cua_repl` 返回的文档。首次调用只做一个入口调用，例如 `await cua.getApp("Calendar")`；后续只有运行时支持时才导入项目模块；若不支持导入，报告运行环境不兼容，由宿主直接操作，不假设 REPL 具备 fs/fetch。当前工具文档优先于旧示例，不修改官方插件文件。
+- 技能源文件：项目 `skill/jev-cu/`。修改后运行 `node scripts/install-skill.mjs` 同步到已安装目录；本机共享安装用 `node scripts/install-skill.mjs --dest /Users/a1/.agents/skills/jev-cu`；不要维护两套正文。
+- ORCA 会话：先读 [ORCA 运行指南](references/orca.md)，用 `scripts/orca-driver.mjs`；不要求 `cua_repl`。
+- Codex 桌面 `cua_repl` 会话：执行前读取当前 `cua_repl` 返回的文档。首次调用只做一个入口调用，例如 `await cua.getApp("Calendar")`；后续只有运行时支持时才导入项目模块；若不支持导入，报告运行环境不兼容，由宿主直接操作，不假设 REPL 具备 fs/fetch。当前工具文档优先于旧示例，不修改官方插件文件。
 
 ## 执行流程
 
