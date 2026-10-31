@@ -22,6 +22,15 @@ skill 源文件里的 `{{REPO_DIR}}` 会在安装时替换成仓库实际路径�
 
 ## 使用
 
+### ORCA local integration
+
+This checkout includes `scripts/orca-driver.mjs` for ORCA's `orca computer` runtime,
+including Korean macOS accessibility role normalization. Install the shared skill
+with `npm run install-skill -- --dest /Users/a1/.agents/skills/jev-cu`.
+Run `npm run orca:check -- <app-bundle-id>` for a read-only check with zero Jev calls.
+See `skill/jev-cu/references/orca.md` for bounded execution and verification.
+The original Codex desktop runtime below remains supported.
+
 先在 `.env.local` 写入 key（不提交），或设置同名环境变量：
 
 ```bash
